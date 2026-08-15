@@ -21,6 +21,12 @@ export const metadata: Metadata = {
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
   },
   formatDetection: { telephone: false },
+  other: {
+    // Next emits the modern `mobile-web-app-capable`. iPhones older than iOS 15.4
+    // only honour the apple-prefixed one, and shipping both is the supported combo
+    // — this is what makes the home-screen icon open full-screen instead of in Safari.
+    'apple-mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport: Viewport = {
