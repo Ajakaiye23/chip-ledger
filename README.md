@@ -33,17 +33,34 @@ doesn't smear across two weeks.
 a seat. The host can also add people who don't have the app at all — they get a
 seat that the host keeps the books for.
 
-**Chip values, per round.** Each round stores its own price list. Blue is $5 in
-round one and $10 in round two if you want it to be, and round one keeps the
-prices it was scored at.
+**Chip values, set when the table opens.** Chosen once at creation and used to
+score the whole night. Each round still stores its own snapshot of them, which is
+what keeps a closed round's numbers correct even if the host does re-price
+mid-game (possible, but tucked away, because it usually means someone made a
+mistake).
+
+**Blinds and the button.** Set the small and big blind when you open the table.
+The button moves one seat each round, the app says who posts what, and it gets
+heads-up right — with two players the dealer posts the small blind. When a round
+is on you, your phone flashes it at you, so nobody has to ask whose deal it is.
 
 **Buy in for whatever you like.** Type a dollar amount and see the chips it buys,
 or count out the chips and see what they're worth. Rebuy as often as you want.
 Cashing out takes money off the table without it counting as a loss.
 
+**Counting up.** At the end of a round each player's chips are counted by colour,
+which is what you're doing at the table anyway; the app values the pile at the
+round's prices and the difference is that player's profit.
+
 **Leave and come back.** Sitting out, walking away, or joining at round nine are
 all just rows in an append-only history. Rejoining reuses your seat rather than
 making a new one, so nothing is ever orphaned.
+
+**History.** The night's money on one screen: who owes and who is owed, and what
+each player won or lost in every round.
+
+**Monthly leaderboard.** Everyone you played with this calendar month, ranked by
+what they're up. Resets on the 1st.
 
 **Settling up.** At the end, the app computes the shortest list of payments that
 squares everyone. See [How the settle-up works](#how-the-settle-up-works).
@@ -115,6 +132,24 @@ If someone's chip count was typed wrong and the totals don't reconcile, the app
 says so, and settling anyway puts the difference on the largest position rather
 than producing a plan nobody can actually pay.
 
+## Making change is not greedy
+
+Breaking an amount into chips by taking the biggest denomination first is the
+obvious approach, and it is wrong for the sets people actually use. Give it dimes,
+quarters, halves and 75c chips and ask for 30c: it takes a quarter, then can't
+place the last nickel — even though three dimes is sitting right there. Sets where
+greedy works are the exception, not the rule.
+
+So `makeChange` in `src/lib/ledger.ts` runs a real shortest-path DP over amounts
+and returns the fewest chips that make the number exactly. When an amount genuinely
+can't be built — 5c out of dimes and quarters — it says so and offers the closest
+reachable amount, rather than quietly dropping the difference.
+
+Note that a stack's *value* is finer-grained than any single chip: a quarter minus
+two dimes is 5c, so a dime-and-quarter table can still land on nickels. That's why
+the app tells you the smallest amount your chip set can express when you set the
+blinds.
+
 ## How the round maths works
 
 The whole ledger rests on one identity. A player's stack at the end of a round is
@@ -134,7 +169,7 @@ late joins, walk-aways and rejoins need no special handling — see
 ## Tests
 
 ```bash
-npm test          # settlement + ledger maths (22 tests)
+npm test          # settlement, ledger and blind maths (38 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
 ```
@@ -150,8 +185,10 @@ checked to reuse the existing seat.
 
 ```
 src/lib/settle.ts      minimum-payment settlement
-src/lib/ledger.ts      rebuilds the game from its rows: per-round nets, totals
+src/lib/ledger.ts      rebuilds the game from its rows; chip maths and change-making
+src/lib/blinds.ts      seating order, the button, and who posts what
 src/lib/stats.ts       the rolling account windows
+src/lib/leaderboard.ts the monthly standings
 src/lib/queries.ts     reads (a game; an account's whole history)
 src/lib/actions.ts     writes (buy-ins, rounds, stacks, settlement)
 src/hooks/use-game.ts  live sync for everyone at the table
@@ -169,3 +206,10 @@ scripts/make-icons.mjs draws the PWA icons (no image dependencies)
   is always fetched fresh — a stale balance is worse than a spinner.
 - **Currency.** Everything is integer cents with a `$` in front. There's no
   multi-currency support.
+- **It doesn't run the hand.** No cards, no pots, no betting rounds. It knows the
+  seating order and the blind structure, and it knows what everyone's stack was
+  worth when the round closed. Everything in between is your game.
+- **Performance.** No web fonts, no images beyond the icons, no animation except a
+  single compositor-only opacity pulse on the blind banner. The sticky header is
+  opaque rather than blurred, because a translucent bar repaints on every scroll
+  frame on a phone.

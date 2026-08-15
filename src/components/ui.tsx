@@ -36,7 +36,7 @@ export function Button({
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-medium tracking-wide text-ink-300 uppercase">{label}</span>
+      <span className="plate text-ink-300">{label}</span>
       {children}
       {hint ? <span className="block text-xs text-ink-500">{hint}</span> : null}
     </label>
@@ -90,7 +90,7 @@ export function Sheet({
         className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] outline-none sm:rounded-b-[var(--radius-card)] sm:pb-5"
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="display text-xl font-semibold">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"

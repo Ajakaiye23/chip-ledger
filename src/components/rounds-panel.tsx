@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react';
 import type { GameData } from '@/hooks/use-game';
 import type { GameState } from '@/lib/ledger';
 import { closeRound, setDefaultChipValues, setRoundChipValues, startRound } from '@/lib/actions';
+import { blindsFor, blindsLabel, nextDealerId } from '@/lib/blinds';
 import { chipsToCents } from '@/lib/ledger';
 import { formatMoney } from '@/lib/money';
-import type { ChipCounts, ChipDenomination } from '@/lib/types';
+import type { ChipCounts, ChipDenomination, GamePlayer } from '@/lib/types';
 import { ChipValuesEditor } from './chip-values-editor';
 import { currentChipValues } from './players-panel';
 import { StackInput, type StackValue } from './stack-input';
-import { Button, Empty, Money, Sheet } from './ui';
+import { Button, Money, Sheet } from './ui';
 
 export function RoundsPanel({
   data,
@@ -28,18 +29,23 @@ export function RoundsPanel({
   onChange: () => void;
 }) {
   const [scoring, setScoring] = useState(false);
+  const [repricing, setRepricing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const openRound = data.rounds.find((r) => r.status === 'open') ?? null;
-  const closed = data.rounds.filter((r) => r.status === 'closed');
   const nextNumber = (data.rounds.at(-1)?.number ?? 0) + 1;
 
   async function begin() {
     setBusy(true);
     setError(null);
     try {
-      await startRound(data.game.id, nextNumber, currentChipValues(data));
+      await startRound(
+        data.game.id,
+        nextNumber,
+        currentChipValues(data),
+        nextDealerId(data.players, data.rounds),
+      );
       onChange();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start the round.');
@@ -60,23 +66,38 @@ export function RoundsPanel({
       {settled ? null : openRound ? (
         <section className="card space-y-4 p-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Round {openRound.number}</h2>
+            <h2 className="display text-xl font-semibold">Round {openRound.number}</h2>
             <span className="text-xs text-brass-400">in play</span>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-medium tracking-wide text-ink-300 uppercase">
-              What the chips are worth this round
-            </p>
-            <ChipValuesEditor
-              chips={openRound.chip_values}
-              onChange={saveChipValues}
-              disabled={!isHost}
-            />
-            {!isHost ? (
-              <p className="text-xs text-ink-500">Only the host can re-price chips.</p>
-            ) : null}
-          </div>
+          <BlindsStrip
+            players={data.players}
+            dealerId={openRound.dealer_player_id}
+            smallBlindCents={data.game.small_blind_cents}
+            bigBlindCents={data.game.big_blind_cents}
+          />
+
+          <details className="rounded-xl border border-white/10 p-3">
+            <summary className="plate cursor-pointer text-ink-300">
+              Chip values
+            </summary>
+            <div className="mt-3 space-y-2">
+              <ChipValuesEditor
+                chips={openRound.chip_values}
+                onChange={saveChipValues}
+                disabled={!isHost || !repricing}
+              />
+              <p className="text-xs text-ink-500">
+                Set when the table opened. Closed rounds keep the prices they were scored
+                at, so changing these only affects the round in play.
+              </p>
+              {isHost ? (
+                <Button size="sm" variant="ghost" onClick={() => setRepricing((v) => !v)}>
+                  {repricing ? 'Done' : 'Change them anyway'}
+                </Button>
+              ) : null}
+            </div>
+          </details>
 
           {isHost ? (
             <Button className="w-full" onClick={() => setScoring(true)}>
@@ -97,6 +118,15 @@ export function RoundsPanel({
             A round is however long you want it to be — one hand, one hour, or the whole
             night. Everyone&apos;s stack gets counted when it closes.
           </p>
+          {data.players.length > 0 && !settled ? (
+            <BlindsStrip
+              players={data.players}
+              dealerId={nextDealerId(data.players, data.rounds)}
+              smallBlindCents={data.game.small_blind_cents}
+              bigBlindCents={data.game.big_blind_cents}
+              upcoming
+            />
+          ) : null}
           {isHost ? (
             <Button className="w-full" onClick={begin} disabled={busy}>
               {busy ? 'Starting…' : `Start round ${nextNumber}`}
@@ -108,50 +138,6 @@ export function RoundsPanel({
         </section>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium tracking-wide text-ink-300 uppercase">Round by round</h2>
-        {closed.length === 0 ? (
-          <Empty>Closed rounds and who won what will show up here.</Empty>
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-left text-xs text-ink-500 uppercase">
-                  <th className="px-4 py-2.5 font-medium">Player</th>
-                  {closed.map((r) => (
-                    <th key={r.id} className="px-3 py-2.5 text-right font-medium">
-                      R{r.number}
-                    </th>
-                  ))}
-                  <th className="px-4 py-2.5 text-right font-medium">Net</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {state.players.map((p) => (
-                  <tr key={p.player.id}>
-                    <td className="px-4 py-2.5 whitespace-nowrap">{p.player.display_name}</td>
-                    {closed.map((r) => {
-                      const result = p.rounds.find((x) => x.roundId === r.id);
-                      return (
-                        <td key={r.id} className="px-3 py-2.5 text-right">
-                          {result?.recorded ? (
-                            <Money cents={result.netCents} sign />
-                          ) : (
-                            <span className="text-ink-500">—</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-2.5 text-right font-semibold">
-                      <Money cents={p.netCents} sign />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       {openRound ? (
         <ScoreRoundSheet
@@ -165,6 +151,57 @@ export function RoundsPanel({
           chipValues={openRound.chip_values}
           onDone={onChange}
         />
+      ) : null}
+    </div>
+  );
+}
+
+/** Who deals and who is forced in, for the round in play or the one about to start. */
+function BlindsStrip({
+  players,
+  dealerId,
+  smallBlindCents,
+  bigBlindCents,
+  upcoming = false,
+}: {
+  players: GamePlayer[];
+  dealerId: string | null;
+  smallBlindCents: number;
+  bigBlindCents: number;
+  upcoming?: boolean;
+}) {
+  const { dealer, smallBlind, bigBlind } = blindsFor(players, dealerId);
+  const headsUp = smallBlind && dealer && smallBlind.id === dealer.id;
+
+  return (
+    <div className="rounded-xl bg-black/25 p-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="plate">
+          {upcoming ? 'Next deal' : 'This deal'}
+        </span>
+        <span className="text-xs text-brass-400">
+          blinds {blindsLabel(smallBlindCents, bigBlindCents)}
+        </span>
+      </div>
+      <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+        {[
+          { label: 'Dealer', who: dealer?.display_name, amount: null },
+          { label: 'Small blind', who: smallBlind?.display_name, amount: smallBlindCents },
+          { label: 'Big blind', who: bigBlind?.display_name, amount: bigBlindCents },
+        ].map((slot) => (
+          <div key={slot.label}>
+            <dt className="text-[11px] text-ink-500">{slot.label}</dt>
+            <dd className="truncate font-medium">{slot.who ?? '—'}</dd>
+            {slot.amount != null && slot.who ? (
+              <dd className="text-xs text-ink-500 tabular">{formatMoney(slot.amount)}</dd>
+            ) : null}
+          </div>
+        ))}
+      </dl>
+      {headsUp ? (
+        <p className="mt-2 text-xs text-ink-500">
+          Heads-up: the dealer posts the small blind and acts first before the flop.
+        </p>
       ) : null}
     </div>
   );
@@ -276,6 +313,7 @@ function ScoreRoundSheet({
                 value={entered(p.player.id)}
                 onChange={(v) => setValues((prev) => ({ ...prev, [p.player.id]: v }))}
                 quickAmounts={false}
+                defaultMode="chips"
               />
             </div>
           );

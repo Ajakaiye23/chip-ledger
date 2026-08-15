@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { computeGameState, type GameState } from './ledger';
+import type { MonthGame } from './leaderboard';
 import { playedAt, type GameSummary } from './stats';
 import type { Game, GamePlayer, LedgerEntry, Round, RoundStack, Settlement } from './types';
 
@@ -62,6 +63,61 @@ export async function findGameByCode(supabase: SupabaseClient, code: string) {
  * Every game this account has ever sat in, reduced to that account's own
  * numbers. This is what the lifetime and rolling-window stats are built from.
  */
+/**
+ * Every table you sat at since `since`, with all of its players — the leaderboard
+ * needs everyone's numbers, not just yours. Row-level security means this can only
+ * ever return games you were actually in.
+ */
+export async function loadMonthGames(
+  supabase: SupabaseClient,
+  userId: string,
+  since: number,
+): Promise<MonthGame[]> {
+  const { data: seats } = await supabase
+    .from('game_players')
+    .select('game_id, games(*)')
+    .eq('user_id', userId);
+
+  const rows = (seats ?? []) as unknown as Array<{ game_id: string; games: Game | null }>;
+  const games = rows.map((r) => r.games).filter((g): g is Game => g !== null);
+  if (games.length === 0) return [];
+
+  const gameIds = games.map((g) => g.id);
+  const [playersRes, roundsRes, entriesRes] = await Promise.all([
+    supabase.from('game_players').select('*').in('game_id', gameIds),
+    supabase.from('rounds').select('*').in('game_id', gameIds).order('number'),
+    supabase.from('ledger_entries').select('*').in('game_id', gameIds),
+  ]);
+
+  const allPlayers = (playersRes.data ?? []) as GamePlayer[];
+  const allRounds = (roundsRes.data ?? []) as Round[];
+  const allEntries = (entriesRes.data ?? []) as LedgerEntry[];
+  const stacksRes = allRounds.length
+    ? await supabase.from('round_stacks').select('*').in('round_id', allRounds.map((r) => r.id))
+    : { data: [] as RoundStack[] };
+  const allStacks = (stacksRes.data ?? []) as RoundStack[];
+
+  return games
+    .map((game) => {
+      const rounds = allRounds.filter((r) => r.game_id === game.id);
+      const roundIds = new Set(rounds.map((r) => r.id));
+      const lastClosed = [...rounds].reverse().find((r) => r.closed_at)?.closed_at ?? null;
+
+      return {
+        game,
+        playedAt: playedAt(game, lastClosed),
+        state: computeGameState({
+          players: allPlayers.filter((p) => p.game_id === game.id),
+          rounds,
+          entries: allEntries.filter((e) => e.game_id === game.id),
+          stacks: allStacks.filter((s) => roundIds.has(s.round_id)),
+        }),
+      };
+    })
+    .filter((g) => g.playedAt >= since)
+    .sort((a, b) => b.playedAt - a.playedAt);
+}
+
 export async function loadAccountHistory(
   supabase: SupabaseClient,
   userId: string,

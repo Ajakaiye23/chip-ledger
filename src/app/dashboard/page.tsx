@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { Dashboard } from '@/components/dashboard';
 import { createClient } from '@/lib/supabase/server';
-import { loadAccountHistory } from '@/lib/queries';
+import { loadAccountHistory, loadMonthGames } from '@/lib/queries';
+import { monthlyLeaderboard, startOfMonth } from '@/lib/leaderboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,10 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/');
 
-  const [{ data: profile }, summaries] = await Promise.all([
+  const [{ data: profile }, summaries, monthGames] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     loadAccountHistory(supabase, user.id),
+    loadMonthGames(supabase, user.id, startOfMonth()),
   ]);
 
   const displayName =
@@ -28,6 +30,7 @@ export default async function DashboardPage() {
       displayName={displayName}
       avatarUrl={(profile?.avatar_url as string | null) ?? null}
       summaries={summaries}
+      leaderboard={monthlyLeaderboard(monthGames, user.id)}
     />
   );
 }

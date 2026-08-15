@@ -1,5 +1,6 @@
 import type { GameData } from '@/hooks/use-game';
 import { computeGameState } from './ledger';
+import { monthlyLeaderboard, type LeaderboardRow } from './leaderboard';
 import { playedAt, type GameSummary } from './stats';
 import type { ChipDenomination, Game, GamePlayer, LedgerEntry, Round, RoundStack } from './types';
 
@@ -10,17 +11,14 @@ import type { ChipDenomination, Game, GamePlayer, LedgerEntry, Round, RoundStack
 
 export const PREVIEW_USER_ID = 'user-hannah';
 
-const CHIPS_R1: ChipDenomination[] = [
-  { key: 'white', label: 'White', color: '#f4f4f5', valueCents: 25 },
-  { key: 'red', label: 'Red', color: '#dc2626', valueCents: 100 },
-  { key: 'blue', label: 'Blue', color: '#2563eb', valueCents: 500 },
-  { key: 'green', label: 'Green', color: '#16a34a', valueCents: 2500 },
+// Set once when the table opened, and used to score every round.
+const CHIPS: ChipDenomination[] = [
+  { key: 'white', label: 'White', color: '#f4f4f5', valueCents: 10 },
+  { key: 'red', label: 'Red', color: '#dc2626', valueCents: 25 },
+  { key: 'blue', label: 'Blue', color: '#2563eb', valueCents: 50 },
+  { key: 'green', label: 'Green', color: '#16a34a', valueCents: 100 },
+  { key: 'black', label: 'Black', color: '#18181b', valueCents: 500 },
 ];
-
-// Round two doubles the blue chip — the same chips, worth more.
-const CHIPS_R2: ChipDenomination[] = CHIPS_R1.map((c) =>
-  c.key === 'blue' ? { ...c, valueCents: 1000 } : c,
-);
 
 // Tonight, so the preview's rolling-window stats look like a real evening.
 const TABLE_OPENED = Date.now() - 3 * 60 * 60 * 1000;
@@ -32,7 +30,9 @@ const game: Game = {
   name: 'Friday night',
   host_id: PREVIEW_USER_ID,
   status: 'active',
-  default_chip_values: CHIPS_R2,
+  default_chip_values: CHIPS,
+  small_blind_cents: 10,
+  big_blind_cents: 25,
   created_at: t(0),
   ended_at: null,
 };
@@ -45,9 +45,9 @@ const players: GamePlayer[] = [
 ];
 
 const rounds: Round[] = [
-  { id: 'r1', game_id: game.id, number: 1, status: 'closed', chip_values: CHIPS_R1, started_at: t(5), closed_at: t(60) },
-  { id: 'r2', game_id: game.id, number: 2, status: 'closed', chip_values: CHIPS_R2, started_at: t(62), closed_at: t(120) },
-  { id: 'r3', game_id: game.id, number: 3, status: 'open', chip_values: CHIPS_R2, started_at: t(125), closed_at: null },
+  { id: 'r1', game_id: game.id, number: 1, status: 'closed', chip_values: CHIPS, dealer_player_id: 'p-hannah', started_at: t(5), closed_at: t(60) },
+  { id: 'r2', game_id: game.id, number: 2, status: 'closed', chip_values: CHIPS, dealer_player_id: 'p-sam', started_at: t(62), closed_at: t(120) },
+  { id: 'r3', game_id: game.id, number: 3, status: 'open', chip_values: CHIPS, dealer_player_id: 'p-dev', started_at: t(125), closed_at: null },
 ];
 
 const money = (
@@ -103,6 +103,39 @@ export const sampleGame: GameData = {
   stacks,
   settlement: null,
 };
+
+/** The month's standings, as they'd look after a few nights with this crowd. */
+export function sampleLeaderboard(): LeaderboardRow[] {
+  return monthlyLeaderboard(
+    [
+      { game, state: computeGameState({ players, rounds, entries, stacks }), playedAt: Date.now() },
+      {
+        game: { ...game, id: 'past-a', code: 'PASTA0', name: 'Tuesday cash game' },
+        playedAt: Date.now() - 3 * 86_400_000,
+        state: computeGameState({
+          players: players.slice(0, 3).map((p) => ({ ...p, id: `a-${p.id}` })),
+          rounds: [{ ...rounds[0], id: 'a-r1', game_id: 'past-a' }],
+          entries: players.slice(0, 3).map((p, i) => ({
+            ...entries[0],
+            id: `a-e${i}`,
+            game_id: 'past-a',
+            player_id: `a-${p.id}`,
+            round_id: 'a-r1',
+            amount_cents: 6000,
+          })),
+          stacks: players.slice(0, 3).map((p, i) => ({
+            ...stacks[0],
+            id: `a-s${i}`,
+            round_id: 'a-r1',
+            player_id: `a-${p.id}`,
+            stack_cents: [3750, 8100, 6150][i],
+          })),
+        }),
+      },
+    ],
+    PREVIEW_USER_ID,
+  );
+}
 
 /** A few nights of history for the dashboard stats. */
 export function sampleSummaries(): GameSummary[] {

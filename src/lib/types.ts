@@ -22,6 +22,8 @@ export type Game = {
   host_id: string;
   status: GameStatus;
   default_chip_values: ChipDenomination[];
+  small_blind_cents: number;
+  big_blind_cents: number;
   created_at: string;
   ended_at: string | null;
 };
@@ -42,6 +44,8 @@ export type Round = {
   number: number;
   status: RoundStatus;
   chip_values: ChipDenomination[];
+  /** Who deals this round; the button moves one seat each round. */
+  dealer_player_id: string | null;
   started_at: string;
   closed_at: string | null;
 };
@@ -79,10 +83,29 @@ export type Payment = {
   amountCents: number;
 };
 
+/** Dime up: small enough for a 10c/25c blind structure without silly chip counts. */
 export const DEFAULT_CHIPS: ChipDenomination[] = [
-  { key: 'white', label: 'White', color: '#f4f4f5', valueCents: 25 },
-  { key: 'red', label: 'Red', color: '#dc2626', valueCents: 100 },
-  { key: 'blue', label: 'Blue', color: '#2563eb', valueCents: 500 },
-  { key: 'green', label: 'Green', color: '#16a34a', valueCents: 2500 },
-  { key: 'black', label: 'Black', color: '#18181b', valueCents: 10000 },
+  { key: 'white', label: 'White', color: '#f4f4f5', valueCents: 10 },
+  { key: 'red', label: 'Red', color: '#dc2626', valueCents: 25 },
+  { key: 'blue', label: 'Blue', color: '#2563eb', valueCents: 50 },
+  { key: 'green', label: 'Green', color: '#16a34a', valueCents: 100 },
+  { key: 'black', label: 'Black', color: '#18181b', valueCents: 500 },
 ];
+
+export const DEFAULT_SMALL_BLIND_CENTS = 10;
+export const DEFAULT_BIG_BLIND_CENTS = 25;
+
+/**
+ * The smallest amount these chips can express. A dime/quarter set can make 5c
+ * (quarter minus two dimes), which is why stacks and payouts can land on a
+ * nickel even when no nickel chip exists.
+ */
+export function chipGranularityCents(chips: ChipDenomination[]): number {
+  const values = chips.map((c) => c.valueCents).filter((v) => v > 0);
+  if (values.length === 0) return 1;
+  return values.reduce((g, v) => {
+    let [a, b] = [g, v];
+    while (b) [a, b] = [b, a % b];
+    return a;
+  });
+}

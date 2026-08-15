@@ -5,21 +5,96 @@ export function chipsToCents(chips: ChipCounts | null | undefined, denoms: ChipD
   return denoms.reduce((sum, d) => sum + (chips[d.key] ?? 0) * d.valueCents, 0);
 }
 
-/** Greedy chip breakdown for an amount — biggest denomination first. */
-export function centsToChips(cents: number, denoms: ChipDenomination[]): ChipCounts {
+export type ChipBreakdown = {
+  chips: ChipCounts;
+  /** What the breakdown is actually worth — equals the amount asked for when `exact`. */
+  totalCents: number;
+  /** False when these denominations can't make the amount at all. */
+  exact: boolean;
+};
+
+const MAX_DP_STEPS = 2_000_000;
+
+/**
+ * Break an amount into chips, using as few chips as possible.
+ *
+ * Taking the biggest denomination first is the obvious approach and it is WRONG
+ * for the sets people actually use. With dimes, quarters, halves and 75c chips,
+ * greedy makes 30c into one quarter and then can't place the last nickel — even
+ * though three dimes is right there. Sets where greedy works ("canonical" ones)
+ * are the exception, not the rule, so this does the real thing: a shortest-path
+ * DP over amounts.
+ *
+ * When an amount simply cannot be made — 5c out of dimes and quarters — it
+ * returns the closest reachable amount below it and flags `exact: false`, so the
+ * UI can say so instead of quietly pocketing the difference.
+ */
+export function makeChange(cents: number, denoms: ChipDenomination[]): ChipBreakdown {
+  const usable = denoms.filter((d) => d.valueCents > 0);
+  if (cents <= 0 || usable.length === 0) {
+    return { chips: {}, totalCents: 0, exact: cents === 0 };
+  }
+
+  // Every reachable amount is a multiple of the gcd, so work in those units.
+  const step = usable.reduce((g, d) => gcd(g, d.valueCents), 0);
+  const target = Math.floor(cents / step);
+
+  if (target > MAX_DP_STEPS) return greedyChange(cents, usable);
+
+  // best[i] = fewest chips making i units; from[i] = the denomination used last.
+  const best = new Int32Array(target + 1).fill(-1);
+  const from = new Int32Array(target + 1).fill(-1);
+  best[0] = 0;
+
+  for (let i = 1; i <= target; i++) {
+    for (let d = 0; d < usable.length; d++) {
+      const units = usable[d].valueCents / step;
+      if (units > i) continue;
+      const prev = best[i - units];
+      if (prev < 0) continue;
+      if (best[i] < 0 || prev + 1 < best[i]) {
+        best[i] = prev + 1;
+        from[i] = d;
+      }
+    }
+  }
+
+  // Walk down to the largest amount we can actually build.
+  let at = target;
+  while (at > 0 && best[at] < 0) at--;
+
+  const chips: ChipCounts = {};
+  let cursor = at;
+  while (cursor > 0) {
+    const d = usable[from[cursor]];
+    chips[d.key] = (chips[d.key] ?? 0) + 1;
+    cursor -= d.valueCents / step;
+  }
+
+  const totalCents = at * step;
+  return { chips, totalCents, exact: totalCents === cents };
+}
+
+/** Fallback for absurdly large amounts, where the exact DP isn't worth the memory. */
+function greedyChange(cents: number, denoms: ChipDenomination[]): ChipBreakdown {
   const sorted = [...denoms].sort((a, b) => b.valueCents - a.valueCents);
-  const out: ChipCounts = {};
+  const chips: ChipCounts = {};
   let left = cents;
   for (const d of sorted) {
-    if (d.valueCents <= 0) continue;
     const n = Math.floor(left / d.valueCents);
     if (n > 0) {
-      out[d.key] = n;
+      chips[d.key] = n;
       left -= n * d.valueCents;
     }
   }
-  return out;
+  return { chips, totalCents: cents - left, exact: left === 0 };
 }
+
+function gcd(a: number, b: number): number {
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
 
 export type PlayerRoundResult = {
   roundId: string;

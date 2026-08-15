@@ -5,9 +5,10 @@ import type { GameData } from '@/hooks/use-game';
 import type { GameState, PlayerState } from '@/lib/ledger';
 import { addGuestPlayer, recordMoney, setPlayerStatus } from '@/lib/actions';
 import { formatMoney } from '@/lib/money';
-import type { ChipDenomination, GamePlayer } from '@/lib/types';
+import type { ChipCounts, ChipDenomination, GamePlayer } from '@/lib/types';
 import { StackInput, type StackValue } from './stack-input';
-import { Button, Empty, Field, Money, Sheet, inputClass } from './ui';
+import { Button, ChipDot, Empty, Field, Money, Sheet, inputClass } from './ui';
+import { blindsFor, type BlindAssignment } from '@/lib/blinds';
 
 export function PlayersPanel({
   data,
@@ -33,6 +34,8 @@ export function PlayersPanel({
 
   const me = data.players.find((p) => p.user_id === userId) ?? null;
   const chipValues = currentChipValues(data);
+  const openRound = data.rounds.find((r) => r.status === 'open') ?? null;
+  const blinds = blindsFor(data.players, openRound?.dealer_player_id ?? null);
   const seated = state.players.filter((p) => p.player.status !== 'left');
   const gone = state.players.filter((p) => p.player.status === 'left');
 
@@ -46,6 +49,9 @@ export function PlayersPanel({
             isMe={p.player.user_id === userId}
             canManage={isHost || p.player.user_id === userId}
             settled={settled}
+            chipValues={chipValues}
+            heldChips={heldChipsFor(data, p.player.id)}
+            role={roleOf(blinds, p.player.id)}
             onMoney={(kind) => setMoneySheet({ player: p.player, kind })}
             onStatus={async (status) => {
               await setPlayerStatus(p.player.id, status);
@@ -68,6 +74,9 @@ export function PlayersPanel({
                 isMe={p.player.user_id === userId}
                 canManage={isHost || p.player.user_id === userId}
                 settled={settled}
+                chipValues={chipValues}
+                heldChips={heldChipsFor(data, p.player.id)}
+                role={roleOf(blinds, p.player.id)}
                 onMoney={(kind) => setMoneySheet({ player: p.player, kind })}
                 onStatus={async (status) => {
                   await setPlayerStatus(p.player.id, status);
@@ -136,6 +145,9 @@ function PlayerRow({
   isMe,
   canManage,
   settled,
+  chipValues,
+  heldChips,
+  role,
   onMoney,
   onStatus,
 }: {
@@ -143,6 +155,10 @@ function PlayerRow({
   isMe: boolean;
   canManage: boolean;
   settled: boolean;
+  chipValues: ChipDenomination[];
+  /** Chip counts from this player's last recorded stack, if anyone counted them. */
+  heldChips: ChipCounts | null;
+  role: 'dealer' | 'small' | 'big' | null;
   onMoney: (kind: 'buy_in' | 'cash_out') => void;
   onStatus: (status: 'active' | 'away' | 'left') => void;
 }) {
@@ -162,6 +178,11 @@ function PlayerRow({
             {player.status === 'left' ? (
               <span className="text-xs text-ink-500">away</span>
             ) : null}
+            {role ? (
+              <span className="rounded bg-brass-500/20 px-1.5 py-0.5 text-[10px] font-medium text-brass-400">
+                {role === 'dealer' ? 'D' : role === 'small' ? 'SB' : 'BB'}
+              </span>
+            ) : null}
           </p>
           <p className="mt-0.5 text-xs text-ink-500">
             bought in {formatMoney(entry.totalBuyInCents)}
@@ -178,6 +199,20 @@ function PlayerRow({
           </p>
         </div>
       </div>
+
+      {heldChips ? (
+        <ul className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
+          {chipValues
+            .filter((c) => heldChips[c.key])
+            .map((c) => (
+              <li key={c.key} className="inline-flex items-center gap-1.5">
+                <ChipDot chip={c} size={13} />
+                <span className="tabular text-ink-300">{heldChips[c.key]}</span>
+                {c.label}
+              </li>
+            ))}
+        </ul>
+      ) : null}
 
       {canManage && !settled ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -341,4 +376,21 @@ export function currentChipValues(data: GameData): ChipDenomination[] {
   if (fromRound && fromRound.length > 0) return fromRound;
   const latest = [...data.rounds].reverse().find((r) => r.chip_values?.length);
   return latest?.chip_values ?? data.game.default_chip_values;
+}
+
+function roleOf(blinds: BlindAssignment, playerId: string): 'dealer' | 'small' | 'big' | null {
+  if (blinds.smallBlind?.id === playerId) return 'small';
+  if (blinds.bigBlind?.id === playerId) return 'big';
+  if (blinds.dealer?.id === playerId) return 'dealer';
+  return null;
+}
+
+/** The chips someone actually has in front of them, as last counted. */
+function heldChipsFor(data: GameData, playerId: string): ChipCounts | null {
+  const order = new Map(data.rounds.map((r) => [r.id, r.number]));
+  const latest = data.stacks
+    .filter((s) => s.player_id === playerId && s.chips)
+    .sort((a, b) => (order.get(a.round_id) ?? 0) - (order.get(b.round_id) ?? 0))
+    .at(-1);
+  return latest?.chips ?? null;
 }

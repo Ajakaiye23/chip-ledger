@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { centsToChips, chipsToCents, computeGameState } from './ledger';
-import { DEFAULT_CHIPS, type GamePlayer, type LedgerEntry, type Round, type RoundStack } from './types';
+import { chipsToCents, computeGameState, makeChange } from './ledger';
+import {
+  DEFAULT_CHIPS,
+  chipGranularityCents,
+  type ChipDenomination,
+  type GamePlayer,
+  type LedgerEntry,
+  type Round,
+  type RoundStack,
+} from './types';
 
 const player = (id: string, name = id): GamePlayer => ({
   id,
@@ -18,6 +26,7 @@ const round = (id: string, number: number): Round => ({
   number,
   status: 'closed',
   chip_values: DEFAULT_CHIPS,
+  dealer_player_id: null,
   started_at: '2026-01-01T00:00:00Z',
   closed_at: '2026-01-01T01:00:00Z',
 });
@@ -44,7 +53,7 @@ const stack = (roundId: string, playerId: string, dollars: number): RoundStack =
 
 describe('chip maths', () => {
   it('values a stack from its chip counts', () => {
-    expect(chipsToCents({ red: 3, blue: 2 }, DEFAULT_CHIPS)).toBe(3 * 100 + 2 * 500);
+    expect(chipsToCents({ red: 3, blue: 2 }, DEFAULT_CHIPS)).toBe(3 * 25 + 2 * 50);
   });
 
   it('re-values the same chips when a round changes what blue is worth', () => {
@@ -52,9 +61,58 @@ describe('chip maths', () => {
     expect(chipsToCents({ blue: 4 }, reprice)).toBe(4000);
   });
 
-  it('breaks an amount into chips, biggest first', () => {
-    expect(centsToChips(11_25, DEFAULT_CHIPS)).toEqual({ blue: 2, red: 1, white: 1 });
-    expect(centsToChips(137_50, DEFAULT_CHIPS)).toEqual({ black: 1, green: 1, blue: 2, red: 2, white: 2 });
+  it('breaks an amount into the fewest chips', () => {
+    expect(makeChange(1_35, DEFAULT_CHIPS).chips).toEqual({ green: 1, red: 1, white: 1 });
+    expect(makeChange(13_75, DEFAULT_CHIPS).chips).toEqual({ black: 2, green: 3, blue: 1, red: 1 });
+  });
+
+  // Greedy takes a quarter for 30c and then can't place the last nickel.
+  it('makes change on denominations where biggest-first fails', () => {
+    const awkward: ChipDenomination[] = [
+      { key: 'a', label: 'Dime', color: '#fff', valueCents: 10 },
+      { key: 'b', label: 'Quarter', color: '#f00', valueCents: 25 },
+      { key: 'c', label: 'Half', color: '#00f', valueCents: 50 },
+      { key: 'd', label: 'Three quarters', color: '#0f0', valueCents: 75 },
+      { key: 'e', label: 'Dollar', color: '#000', valueCents: 100 },
+    ];
+
+    const thirty = makeChange(30, awkward);
+    expect(thirty.exact).toBe(true);
+    expect(thirty.totalCents).toBe(30);
+    expect(thirty.chips).toEqual({ a: 3 });
+
+    const eighty = makeChange(80, awkward);
+    expect(eighty.exact).toBe(true);
+    expect(eighty.totalCents).toBe(80);
+
+    // Whatever it picks must be worth exactly what was asked for.
+    for (let cents = 5; cents <= 500; cents += 5) {
+      const made = makeChange(cents, awkward);
+      expect(chipsToCents(made.chips, awkward)).toBe(made.totalCents);
+      if (made.exact) expect(made.totalCents).toBe(cents);
+    }
+  });
+
+  it('says so when an amount cannot be made from these chips', () => {
+    const dimesAndQuarters: ChipDenomination[] = [
+      { key: 'a', label: 'Dime', color: '#fff', valueCents: 10 },
+      { key: 'b', label: 'Quarter', color: '#f00', valueCents: 25 },
+    ];
+
+    // 5c is reachable (quarter minus two dimes) as a value, but not as a pile of chips.
+    const nickel = makeChange(5, dimesAndQuarters);
+    expect(nickel.exact).toBe(false);
+    expect(nickel.totalCents).toBe(0);
+
+    const awkward = makeChange(37, dimesAndQuarters);
+    expect(awkward.exact).toBe(false);
+    expect(awkward.totalCents).toBe(35);
+    expect(chipsToCents(awkward.chips, dimesAndQuarters)).toBe(35);
+  });
+
+  it('reports what the smallest expressible amount is', () => {
+    expect(chipGranularityCents(DEFAULT_CHIPS)).toBe(5);
+    expect(chipGranularityCents([{ key: 'a', label: 'A', color: '#fff', valueCents: 100 }])).toBe(100);
   });
 });
 

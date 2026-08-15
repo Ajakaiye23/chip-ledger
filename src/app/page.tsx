@@ -27,10 +27,12 @@ export default async function LandingPage({
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icons/icon-192.png" alt="" width={44} height={44} className="rounded-xl" />
-          <span className="text-lg font-semibold tracking-tight">Chip Ledger</span>
+          <span className="display text-xl font-semibold tracking-tight">Chip Ledger</span>
         </div>
 
-        <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
+        <p className="suits text-sm" aria-hidden />
+
+        <h1 className="display text-4xl leading-[1.1] font-semibold sm:text-6xl">
           The home game,
           <br />
           <span className="text-brass-400">counted properly.</span>
@@ -61,7 +63,7 @@ export default async function LandingPage({
       <section className="w-full lg:max-w-sm">
         <div className="card space-y-5 p-6">
           <div>
-            <h2 className="text-lg font-semibold">Sign in</h2>
+            <h2 className="display text-xl font-semibold">Sign in</h2>
             <p className="mt-1 text-sm text-ink-500">
               Use the account you already have on your phone.
             </p>

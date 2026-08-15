@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Dashboard } from './dashboard';
 import { GameRoomView } from './game-room';
-import { PREVIEW_USER_ID, sampleGame, sampleSummaries } from '@/lib/sample-game';
+import { PREVIEW_USER_ID, sampleGame, sampleLeaderboard, sampleSummaries } from '@/lib/sample-game';
 
 export function PreviewShell() {
   const [view, setView] = useState<'dashboard' | 'game'>('game');
@@ -35,7 +35,12 @@ export function PreviewShell() {
           onChange={() => {}}
         />
       ) : (
-        <Dashboard displayName="Hannah" avatarUrl={null} summaries={summaries} />
+        <Dashboard
+          displayName="Hannah"
+          avatarUrl={null}
+          summaries={summaries}
+          leaderboard={sampleLeaderboard()}
+        />
       )}
     </div>
   );

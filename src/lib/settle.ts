@@ -118,13 +118,3 @@ function partitionIntoZeroSumGroups(balances: Balance[]): Balance[][] {
   return groups;
 }
 
-/** Human-readable check that a payment plan actually squares everyone up. */
-export function verifyPlan(balances: Balance[], payments: Payment[]): boolean {
-  const net = new Map<string, number>();
-  for (const b of balances) net.set(b.playerId, b.netCents);
-  for (const p of payments) {
-    net.set(p.fromPlayerId, (net.get(p.fromPlayerId) ?? 0) + p.amountCents);
-    net.set(p.toPlayerId, (net.get(p.toPlayerId) ?? 0) - p.amountCents);
-  }
-  return [...net.values()].every((v) => v === 0);
-}

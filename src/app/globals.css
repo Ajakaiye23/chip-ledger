@@ -15,6 +15,8 @@
   --color-ink-500: #7e948a;
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Card-room signage, from fonts already on the device — nothing to download. */
+  --font-display: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --radius-card: 1.125rem;
 }
 
@@ -22,11 +24,19 @@
   color-scheme: dark;
 }
 
+/*
+ * The table itself: a lit patch of felt fading into a dark room. Three gradient
+ * stops on one element, painted once and never again — no texture image to
+ * download, no background-attachment: fixed (which forces a repaint on every
+ * scroll frame on mobile).
+ */
 html,
 body {
   background:
-    radial-gradient(120% 80% at 50% -10%, var(--color-felt-700) 0%, transparent 60%),
+    radial-gradient(100% 55% at 50% 0%, var(--color-felt-600) 0%, transparent 62%),
+    radial-gradient(140% 100% at 50% 40%, var(--color-felt-800) 0%, var(--color-felt-950) 78%),
     var(--color-felt-950);
+  background-repeat: no-repeat;
   color: var(--color-ink-100);
   min-height: 100%;
   /* Standalone PWA: keep content clear of the notch and home indicator. */
@@ -44,18 +54,51 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Engraved-plate lettering for the small labels around the table. */
+.plate {
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
+}
+
 @utility card {
   border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--color-felt-800) 82%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ink-100) 8%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink-100) 6%, transparent) inset;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-felt-700) 55%, transparent) 0%,
+      color-mix(in srgb, var(--color-felt-900) 88%, transparent) 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--color-brass-500) 16%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-brass-400) 10%, transparent) inset,
+    0 8px 24px -18px #000;
+}
+
+/* The brass rail around the felt — used for the header and anything that leads. */
+@utility railed {
+  border: 1px solid color-mix(in srgb, var(--color-brass-500) 34%, transparent);
+  background: color-mix(in srgb, var(--color-brass-500) 8%, transparent);
 }
 
 @utility pressable {
-  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
+  transition: transform 120ms ease, background-color 120ms ease;
 }
 .pressable:active {
   transform: scale(0.97);
+}
+
+/* Decorative suit run, e.g. under the wordmark. Pure text, no images. */
+.suits::before {
+  content: '♠ ♥ ♦ ♣';
+  letter-spacing: 0.3em;
+  color: color-mix(in srgb, var(--color-brass-400) 55%, transparent);
 }
 
 input,
@@ -72,11 +115,41 @@ textarea {
   font-size: max(16px, 1rem);
 }
 
+/*
+ * The "it's on you" banner. It has to be catchable from across a table with the
+ * phone lying flat, so it pulses instead of sitting still.
+ *
+ * Only `opacity` is animated, on one absolutely-positioned overlay. That runs on
+ * the compositor: no layout, no repaint, no measurable battery cost from a glow
+ * that's on screen all evening. Animating box-shadow or filter here would repaint
+ * the banner sixty times a second instead.
+ */
+@keyframes chip-flash {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.flash-ring {
+  animation: chip-flash 1.6s ease-in-out infinite;
+  will-change: opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Keep the gold ring, lose the pulse. */
+  .flash-ring {
+    animation: none !important;
+    opacity: 0.45;
   }
 }

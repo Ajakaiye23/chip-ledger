@@ -28,12 +28,22 @@ export async function recordMoney(args: {
   if (error) throw new Error(error.message);
 }
 
-export async function startRound(gameId: string, number: number, chipValues: ChipDenomination[]) {
-  const { error } = await createClient()
-    .from('rounds')
-    .insert({ game_id: gameId, number, chip_values: chipValues, status: 'open' });
+export async function startRound(
+  gameId: string,
+  number: number,
+  chipValues: ChipDenomination[],
+  dealerPlayerId: string | null,
+) {
+  const { error } = await createClient().from('rounds').insert({
+    game_id: gameId,
+    number,
+    chip_values: chipValues,
+    dealer_player_id: dealerPlayerId,
+    status: 'open',
+  });
   if (error) throw new Error(error.message);
 }
+
 
 export async function setRoundChipValues(roundId: string, chipValues: ChipDenomination[]) {
   const { error } = await createClient().from('rounds').update({ chip_values: chipValues }).eq('id', roundId);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { centsToChips, chipsToCents } from '@/lib/ledger';
+import { chipsToCents, makeChange, type ChipBreakdown } from '@/lib/ledger';
 import { formatMoney, parseMoney } from '@/lib/money';
 import type { ChipCounts, ChipDenomination } from '@/lib/types';
 import { ChipDot, inputClass } from './ui';
@@ -19,6 +19,7 @@ export function StackInput({
   onChange,
   autoFocus = false,
   quickAmounts = true,
+  defaultMode = 'money',
 }: {
   chips: ChipDenomination[];
   value: StackValue;
@@ -26,14 +27,25 @@ export function StackInput({
   autoFocus?: boolean;
   /** Off when several of these are stacked up, as in the end-of-round count. */
   quickAmounts?: boolean;
+  /** Scoring a round starts on chip counting; buying in starts on the amount. */
+  defaultMode?: 'money' | 'chips';
 }) {
-  const [mode, setMode] = useState<'money' | 'chips'>('money');
+  const [mode, setMode] = useState<'money' | 'chips'>(defaultMode);
   const [draft, setDraft] = useState<string>(value.cents ? (value.cents / 100).toString() : '');
+  const [made, setMade] = useState<ChipBreakdown | null>(null);
 
   function setMoney(raw: string) {
     setDraft(raw);
     const cents = parseMoney(raw);
-    onChange({ cents: cents ?? 0, chips: cents ? centsToChips(cents, chips) : null });
+    if (cents === null || cents <= 0) {
+      setMade(null);
+      onChange({ cents: cents ?? 0, chips: null });
+      return;
+    }
+    // Not every amount can be built from every chip set — say so rather than round.
+    const breakdown = makeChange(cents, chips);
+    setMade(breakdown);
+    onChange({ cents, chips: breakdown.exact ? breakdown.chips : null });
   }
 
   function setCount(key: string, raw: string) {
@@ -90,17 +102,29 @@ export function StackInput({
               </button>
             ))}
           </div>
-          {value.chips && value.cents > 0 ? (
+          {made && made.exact ? (
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
               <span>That&apos;s</span>
               {chips
-                .filter((c) => value.chips?.[c.key])
+                .filter((c) => made.chips[c.key])
                 .map((c) => (
                   <span key={c.key} className="inline-flex items-center gap-1.5">
                     <ChipDot chip={c} size={14} />
-                    {value.chips?.[c.key]} × {c.label}
+                    {made.chips[c.key]} × {c.label}
                   </span>
                 ))}
+            </p>
+          ) : made ? (
+            <p className="text-xs text-amber-300">
+              These chips can&apos;t make {formatMoney(value.cents)} exactly — the closest is{' '}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => setMoney(String(made.totalCents / 100))}
+              >
+                {formatMoney(made.totalCents)}
+              </button>
+              .
             </p>
           ) : null}
         </>

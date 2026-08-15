@@ -56,7 +56,7 @@ export function SettlePanel({
   return (
     <div className="space-y-5">
       <section className="card p-4">
-        <h2 className="mb-3 font-semibold">Where everyone stands</h2>
+        <h2 className="display mb-3 text-xl font-semibold">Where everyone stands</h2>
         <ul className="divide-y divide-white/5">
           {state.players.map((p) => (
             <li key={p.player.id} className="flex items-center justify-between py-2.5 text-sm">
@@ -75,7 +75,7 @@ export function SettlePanel({
 
       <section className="card space-y-4 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-semibold">Who pays whom</h2>
+          <h2 className="display text-xl font-semibold">Who pays whom</h2>
           {payments.length > 0 ? (
             <span className="text-xs text-ink-500">
               {payments.length} {payments.length === 1 ? 'payment' : 'payments'}

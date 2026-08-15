@@ -3,14 +3,17 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useGame, type GameData } from '@/hooks/use-game';
+import { blindsFor } from '@/lib/blinds';
 import { computeGameState } from '@/lib/ledger';
 import { formatMoney } from '@/lib/money';
+import { HistoryPanel } from './history-panel';
 import { PlayersPanel } from './players-panel';
 import { RoundsPanel } from './rounds-panel';
 import { SettlePanel } from './settle-panel';
 import { Money } from './ui';
+import { YourTurnBanner, roleFor } from './your-turn';
 
-type Tab = 'table' | 'rounds' | 'settle';
+type Tab = 'table' | 'rounds' | 'history' | 'settle';
 
 export function GameRoom({
   userId,
@@ -64,22 +67,25 @@ export function GameRoomView({
   const me = data.players.find((p) => p.user_id === userId) ?? null;
   const openRound = data.rounds.find((r) => r.status === 'open') ?? null;
   const settled = data.game.status === 'settled';
+  const myBlinds = blindsFor(data.players, openRound?.dealer_player_id ?? null);
 
   const tabs: Array<{ key: Tab; label: string }> = [
     { key: 'table', label: 'Table' },
-    { key: 'rounds', label: `Rounds${data.rounds.length ? ` (${data.rounds.length})` : ''}` },
-    { key: 'settle', label: 'Settle up' },
+    { key: 'rounds', label: 'Round' },
+    { key: 'history', label: 'History' },
+    { key: 'settle', label: 'Settle' },
   ];
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 pb-24 sm:px-6">
-      <header className="sticky top-0 z-30 -mx-4 mb-4 bg-felt-950/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      {/* Opaque, not translucent: a blurred sticky bar repaints on every scroll frame. */}
+      <header className="sticky top-0 z-30 -mx-4 mb-4 border-b border-brass-500/15 bg-felt-950 px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href="/dashboard" className="text-xs text-ink-500 hover:text-ink-300">
               ← All games
             </Link>
-            <h1 className="truncate text-xl font-semibold">{data.game.name}</h1>
+            <h1 className="display truncate text-2xl font-semibold">{data.game.name}</h1>
             <p className="mt-0.5 flex items-center gap-2 text-xs text-ink-500">
               <span>
                 {settled ? 'Settled' : openRound ? `Round ${openRound.number} in play` : 'Between rounds'}
@@ -105,14 +111,23 @@ export function GameRoomView({
         </div>
       </header>
 
+      {openRound && !settled ? (
+        <YourTurnBanner
+          role={roleFor(myBlinds, me?.id ?? null)}
+          smallBlindCents={data.game.small_blind_cents}
+          bigBlindCents={data.game.big_blind_cents}
+          alsoDealer={myBlinds.dealer?.id === me?.id}
+        />
+      ) : null}
+
       <section className="card mb-4 flex items-center justify-between gap-4 p-4">
         <div>
-          <p className="text-xs tracking-wide text-ink-500 uppercase">On the table</p>
-          <p className="text-2xl font-semibold tabular">{formatMoney(state.potInCents)}</p>
+          <p className="plate">On the table</p>
+          <p className="display text-3xl font-semibold tabular">{formatMoney(state.potInCents)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs tracking-wide text-ink-500 uppercase">Your position</p>
-          <p className="text-2xl font-semibold">
+          <p className="plate">Your position</p>
+          <p className="display text-3xl font-semibold">
             <Money cents={me ? (state.byPlayerId.get(me.id)?.netCents ?? 0) : 0} sign />
           </p>
         </div>
@@ -150,6 +165,8 @@ export function GameRoomView({
         />
       ) : null}
 
+      {tab === 'history' ? <HistoryPanel data={data} state={state} /> : null}
+
       {tab === 'settle' ? (
         <SettlePanel data={data} state={state} isHost={isHost} onChange={onChange} />
       ) : null}
@@ -182,7 +199,7 @@ function ShareCode({ code, name }: { code: string; name: string }) {
       className="pressable shrink-0 rounded-xl border border-brass-500/40 bg-brass-500/10 px-3 py-2 text-right"
       aria-label="Share the join code"
     >
-      <span className="block text-[10px] tracking-wide text-brass-400 uppercase">
+      <span className="block text-[10px] tracking-[0.14em] text-brass-400 uppercase">
         {copied ? 'Link copied' : 'Join code'}
       </span>
       <span className="block font-mono text-lg tracking-[0.2em] text-brass-400">{code}</span>

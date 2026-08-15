@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { settle, verifyPlan, type Balance } from './settle';
+import { settle, type Balance } from './settle';
+import type { Payment } from './types';
+
+/** Applies a payment plan and checks everyone lands on zero. */
+function verifyPlan(balances: Balance[], payments: Payment[]): boolean {
+  const net = new Map(balances.map((b) => [b.playerId, b.netCents]));
+  for (const p of payments) {
+    net.set(p.fromPlayerId, (net.get(p.fromPlayerId) ?? 0) + p.amountCents);
+    net.set(p.toPlayerId, (net.get(p.toPlayerId) ?? 0) - p.amountCents);
+  }
+  return [...net.values()].every((v) => v === 0);
+}
 
 const b = (playerId: string, dollars: number): Balance => ({
   playerId,
