@@ -76,6 +76,25 @@ describe('settle', () => {
     expect(plan.every((p) => p.amountCents > 0)).toBe(true);
   });
 
+  it('settles awkward cents exactly, with nothing left over', () => {
+    const balances = [
+      b('ash', -7.15), b('bo', 29.95), b('cam', -12.4), b('dee', -18.6), b('eli', 8.2),
+    ];
+    const plan = settle(balances);
+
+    expect(verifyPlan(balances, plan)).toBe(true);
+    // Total paid equals total owed: no rounding, nothing invented, nothing dropped.
+    expect(plan.reduce((sum, p) => sum + p.amountCents, 0)).toBe(715 + 1240 + 1860);
+    expect(plan.every((p) => Number.isInteger(p.amountCents))).toBe(true);
+  });
+
+  it('still pairs people off when the odd amounts happen to cancel', () => {
+    const balances = [b('ash', -7.15), b('bo', 7.15), b('cam', -29.95), b('dee', 29.95)];
+    const plan = settle(balances);
+    expect(plan).toHaveLength(2);
+    expect(verifyPlan(balances, plan)).toBe(true);
+  });
+
   it('falls back to greedy above the exact-solver limit without breaking', () => {
     const balances = Array.from({ length: 18 }, (_, i) =>
       b(`p${i}`, i % 2 === 0 ? 10 : -10),
