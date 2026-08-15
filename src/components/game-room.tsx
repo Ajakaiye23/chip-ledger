@@ -6,6 +6,7 @@ import { useGame, type GameData } from '@/hooks/use-game';
 import { blindsFor } from '@/lib/blinds';
 import { computeGameState } from '@/lib/ledger';
 import { formatMoney } from '@/lib/money';
+import { GuideButton, GuideSheet, useGuide } from './guide';
 import { HistoryPanel } from './history-panel';
 import { PlayersPanel } from './players-panel';
 import { RoundsPanel } from './rounds-panel';
@@ -51,6 +52,7 @@ export function GameRoomView({
   onChange: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('table');
+  const guide = useGuide();
 
   const state = useMemo(
     () =>
@@ -79,7 +81,7 @@ export function GameRoomView({
   return (
     <main className="mx-auto w-full max-w-3xl px-4 pb-24 sm:px-6">
       {/* Opaque, not translucent: a blurred sticky bar repaints on every scroll frame. */}
-      <header className="sticky top-0 z-30 -mx-4 mb-4 border-b border-brass-500/15 bg-felt-950 px-4 py-3 sm:-mx-6 sm:px-6">
+      <header className="relative sticky top-0 z-30 -mx-4 mb-4 bg-night-950 px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href="/dashboard" className="text-xs text-ink-500 hover:text-ink-300">
@@ -93,22 +95,28 @@ export function GameRoomView({
               {syncing ? <span className="text-brass-400">syncing…</span> : null}
             </p>
           </div>
-          <ShareCode code={data.game.code} name={data.game.name} />
+          <div className="flex shrink-0 items-center gap-2">
+            <GuideButton onClick={guide.show} />
+            <ShareCode code={data.game.code} name={data.game.name} />
+          </div>
         </div>
 
-        <div className="mt-3 flex gap-1 rounded-xl bg-black/30 p-1">
+        <div className="mt-3 flex gap-1 rounded-xl border border-brass-500/20 bg-night-900 p-1">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`pressable flex-1 rounded-lg px-3 py-2 text-sm ${
-                tab === t.key ? 'bg-white/10 font-medium text-ink-100' : 'text-ink-500'
+                tab === t.key
+                  ? 'bg-gradient-to-b from-felt-700 to-felt-800 font-medium text-brass-400 shadow-[0_0_0_1px_rgba(212,168,60,0.28)]'
+                  : 'text-ink-500'
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
+        <div className="rule-gold absolute inset-x-0 bottom-0" aria-hidden />
       </header>
 
       {openRound && !settled ? (
@@ -120,7 +128,8 @@ export function GameRoomView({
         />
       ) : null}
 
-      <section className="card mb-4 flex items-center justify-between gap-4 p-4">
+      <section className="card relative mb-4 flex items-center justify-between gap-4 overflow-hidden p-4">
+        <span className="card-back absolute inset-x-0 top-0 h-1" aria-hidden />
         <div>
           <p className="plate">On the table</p>
           <p className="display text-3xl font-semibold tabular">{formatMoney(state.potInCents)}</p>
@@ -170,6 +179,8 @@ export function GameRoomView({
       {tab === 'settle' ? (
         <SettlePanel data={data} state={state} isHost={isHost} onChange={onChange} />
       ) : null}
+
+      <GuideSheet open={guide.open} onClose={guide.close} />
     </main>
   );
 }
@@ -196,7 +207,7 @@ function ShareCode({ code, name }: { code: string; name: string }) {
   return (
     <button
       onClick={share}
-      className="pressable shrink-0 rounded-xl border border-brass-500/40 bg-brass-500/10 px-3 py-2 text-right"
+      className="railed pressable shrink-0 rounded-xl px-3 py-2 text-right"
       aria-label="Share the join code"
     >
       <span className="block text-[10px] tracking-[0.14em] text-brass-400 uppercase">

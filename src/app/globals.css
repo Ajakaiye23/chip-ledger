@@ -1,14 +1,28 @@
 @import 'tailwindcss';
 
 @theme {
+  /* Lacquered black — the room the table sits in. */
+  --color-night-950: #08090a;
+  --color-night-900: #0e1012;
+  --color-night-800: #16191c;
+
+  /* The felt itself. */
   --color-felt-950: #06120d;
   --color-felt-900: #0a1c14;
   --color-felt-800: #0f2a1e;
   --color-felt-700: #163a2a;
   --color-felt-600: #1d4c37;
+
+  /* Brass rail and card-room signage. */
   --color-brass-400: #e8c46a;
   --color-brass-500: #d4a83c;
-  --color-chip-red: #dc2626;
+  --color-brass-600: #a8802a;
+
+  /* Hearts and diamonds: a deep lacquer red, not a warning red. */
+  --color-rouge-400: #e2434f;
+  --color-rouge-500: #c1121f;
+  --color-rouge-600: #8d0c17;
+
   --color-chip-blue: #2563eb;
   --color-ink-100: #eef4f0;
   --color-ink-300: #b6c8bf;
@@ -33,9 +47,13 @@
 html,
 body {
   background:
-    radial-gradient(100% 55% at 50% 0%, var(--color-felt-600) 0%, transparent 62%),
-    radial-gradient(140% 100% at 50% 40%, var(--color-felt-800) 0%, var(--color-felt-950) 78%),
-    var(--color-felt-950);
+    /* the lamp over the table */
+    radial-gradient(90% 42% at 50% -4%, color-mix(in srgb, var(--color-felt-600) 90%, #000) 0%, transparent 60%),
+    /* a low red glow off the walls of the room */
+    radial-gradient(120% 60% at 50% 108%, color-mix(in srgb, var(--color-rouge-600) 24%, transparent) 0%, transparent 62%),
+    /* felt fading out into lacquered black */
+    radial-gradient(130% 90% at 50% 22%, var(--color-felt-900) 0%, var(--color-night-950) 72%),
+    var(--color-night-950);
   background-repeat: no-repeat;
   color: var(--color-ink-100);
   min-height: 100%;
@@ -67,24 +85,55 @@ body {
   color: var(--color-ink-500);
 }
 
+/*
+ * A lacquered black plaque with a brass edge. All static paint: two gradients,
+ * a border and two shadows, rasterised once when the card first appears.
+ */
 @utility card {
   border-radius: var(--radius-card);
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-felt-700) 55%, transparent) 0%,
-      color-mix(in srgb, var(--color-felt-900) 88%, transparent) 100%
+      color-mix(in srgb, var(--color-felt-800) 62%, transparent) 0%,
+      color-mix(in srgb, var(--color-night-900) 92%, transparent) 100%
     );
-  border: 1px solid color-mix(in srgb, var(--color-brass-500) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brass-500) 22%, transparent);
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-brass-400) 10%, transparent) inset,
-    0 8px 24px -18px #000;
+    0 1px 0 color-mix(in srgb, var(--color-brass-400) 14%, transparent) inset,
+    0 0 0 1px #00000059,
+    0 14px 30px -22px #000;
 }
 
-/* The brass rail around the felt — used for the header and anything that leads. */
+/* The brass rail around the felt — used for anything that leads. */
 @utility railed {
-  border: 1px solid color-mix(in srgb, var(--color-brass-500) 34%, transparent);
-  background: color-mix(in srgb, var(--color-brass-500) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brass-500) 40%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brass-500) 14%, transparent) 0%,
+    color-mix(in srgb, var(--color-rouge-600) 10%, transparent) 100%
+  );
+}
+
+/* Playing-card back: red and black on the diagonal. Static, tiles for free. */
+@utility card-back {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-rouge-600) 62%, #000) 0 8px,
+    var(--color-night-900) 8px 16px
+  );
+}
+
+/* Hairline gold rule with a red core — used to close off headers. */
+@utility rule-gold {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-brass-500) 55%, transparent) 22%,
+    var(--color-rouge-500) 50%,
+    color-mix(in srgb, var(--color-brass-500) 55%, transparent) 78%,
+    transparent 100%
+  );
 }
 
 @utility pressable {
@@ -94,11 +143,20 @@ body {
   transform: scale(0.97);
 }
 
-/* Decorative suit run, e.g. under the wordmark. Pure text, no images. */
-.suits::before {
-  content: '♠ ♥ ♦ ♣';
+/*
+ * Decorative suit run, e.g. under the wordmark. Two spans so the red suits are
+ * actually red — pure text, no images, no icon font.
+ */
+.suits {
   letter-spacing: 0.3em;
-  color: color-mix(in srgb, var(--color-brass-400) 55%, transparent);
+}
+.suits::before {
+  content: '♠ ';
+  color: color-mix(in srgb, var(--color-ink-100) 78%, transparent);
+}
+.suits::after {
+  content: '♥ ♦ ♣';
+  color: var(--color-rouge-400);
 }
 
 input,

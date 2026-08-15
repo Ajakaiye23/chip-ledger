@@ -15,9 +15,11 @@ export function Button({
   size?: 'md' | 'sm';
 }) {
   const styles = {
-    primary: 'bg-brass-500 text-felt-950 hover:bg-brass-400 font-semibold',
-    ghost: 'bg-white/5 text-ink-100 hover:bg-white/10 border border-white/10',
-    danger: 'bg-red-600/90 text-white hover:bg-red-600',
+    primary:
+      'bg-gradient-to-b from-brass-400 to-brass-500 text-night-950 font-semibold shadow-[0_1px_0_rgba(255,255,255,0.35)_inset,0_6px_16px_-10px_#000] hover:from-brass-400 hover:to-brass-400',
+    ghost:
+      'border border-brass-500/25 bg-night-900/70 text-ink-100 hover:border-brass-500/45 hover:bg-night-800/80',
+    danger: 'bg-gradient-to-b from-rouge-400 to-rouge-500 text-white font-semibold',
   }[variant];
 
   // 44px tall by default: the smallest thing a thumb reliably hits.
@@ -44,7 +46,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export const inputClass =
-  'w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-ink-100 outline-none placeholder:text-ink-500 focus:border-brass-500/60';
+  'w-full rounded-xl border border-brass-500/20 bg-night-950/70 px-3 py-2.5 text-ink-100 outline-none placeholder:text-ink-500 focus:border-brass-500/70';
 
 /** Bottom sheet on phones, centred dialog on desktop. */
 export function Sheet({
@@ -87,9 +89,9 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] outline-none sm:rounded-b-[var(--radius-card)] sm:pb-5"
+        className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-b-none border-brass-500/35 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] outline-none sm:rounded-b-[var(--radius-card)] sm:pb-5"
       >
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-1 flex items-center justify-between gap-4">
           <h2 className="display text-xl font-semibold">{title}</h2>
           <button
             onClick={onClose}
@@ -99,6 +101,7 @@ export function Sheet({
             ✕
           </button>
         </div>
+        <div className="rule-gold mb-4" aria-hidden />
         {children}
       </div>
     </div>
@@ -106,7 +109,7 @@ export function Sheet({
 }
 
 export function Money({ cents, sign = false, className = '' }: { cents: number; sign?: boolean; className?: string }) {
-  const tone = cents > 0 ? 'text-emerald-400' : cents < 0 ? 'text-red-400' : 'text-ink-300';
+  const tone = cents > 0 ? 'text-emerald-400' : cents < 0 ? 'text-rouge-400' : 'text-ink-300';
   return (
     <span className={`tabular ${sign ? tone : ''} ${className}`}>
       {formatMoney(cents, { sign: sign && cents > 0 })}
@@ -124,6 +127,7 @@ export function ChipDot({ chip, size = 20 }: { chip: ChipDenomination; size?: nu
         height: size,
         background: chip.color,
         borderColor: 'rgba(255,255,255,0.55)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.6)',
       }}
     />
   );

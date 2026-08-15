@@ -15,6 +15,7 @@ import {
 } from '@/lib/types';
 import type { LeaderboardRow } from '@/lib/leaderboard';
 import { ChipValuesEditor } from './chip-values-editor';
+import { GuideButton, GuideSheet, useGuide } from './guide';
 import { Leaderboard } from './leaderboard';
 import { InstallHint } from './install-prompt';
 import { Button, Empty, Field, Money, Sheet, inputClass } from './ui';
@@ -34,6 +35,7 @@ export function Dashboard({
   const params = useSearchParams();
   const [creating, setCreating] = useState(params.get('new') === '1');
   const [joining, setJoining] = useState(params.get('join') === '1');
+  const guide = useGuide();
 
   const windows = useMemo(() => buildWindows(summaries), [summaries]);
   const rounds = useMemo(() => recentRounds(summaries, 12), [summaries]);
@@ -63,9 +65,12 @@ export function Dashboard({
             <p className="font-medium">{displayName}</p>
           </div>
         </div>
-        <Button variant="ghost" onClick={signOut}>
-          Sign out
-        </Button>
+        <div className="flex items-center gap-2">
+          <GuideButton onClick={guide.show} />
+          <Button variant="ghost" onClick={signOut}>
+            Sign out
+          </Button>
+        </div>
       </header>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -139,6 +144,8 @@ export function Dashboard({
       ) : null}
 
       <InstallHint />
+
+      <GuideSheet open={guide.open} onClose={guide.close} />
 
       <CreateGameSheet open={creating} onClose={() => setCreating(false)} displayName={displayName} />
       <JoinGameSheet open={joining} onClose={() => setJoining(false)} displayName={displayName} />

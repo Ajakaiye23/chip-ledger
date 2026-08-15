@@ -92,7 +92,7 @@ export function SettlePanel({
               {payments.map((p, i) => (
                 <li
                   key={`${p.fromPlayerId}-${p.toPlayerId}-${i}`}
-                  className="flex items-center gap-3 rounded-xl bg-black/25 p-3"
+                  className="flex items-center gap-3 rounded-xl border border-brass-500/15 bg-night-950/60 p-3"
                 >
                   <span className="min-w-0 flex-1 truncate">{nameOf(p.fromPlayerId)}</span>
                   <span aria-hidden className="text-brass-400">→</span>

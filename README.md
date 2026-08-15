@@ -65,6 +65,9 @@ what they're up. Resets on the 1st.
 **Settling up.** At the end, the app computes the shortest list of payments that
 squares everyone. See [How the settle-up works](#how-the-settle-up-works).
 
+**A walkthrough.** A five-step guide opens the first time someone lands on the
+site, and stays one tap away behind the `?` in the header afterwards.
+
 **Installable.** Manifest, icons, service worker, iOS meta tags. Android offers a
 real install prompt; iOS gets Share → Add to Home Screen instructions.
 
@@ -209,7 +212,9 @@ scripts/make-icons.mjs draws the PWA icons (no image dependencies)
 - **It doesn't run the hand.** No cards, no pots, no betting rounds. It knows the
   seating order and the blind structure, and it knows what everyone's stack was
   worth when the round closed. Everything in between is your game.
-- **Performance.** No web fonts, no images beyond the icons, no animation except a
-  single compositor-only opacity pulse on the blind banner. The sticky header is
-  opaque rather than blurred, because a translucent bar repaints on every scroll
-  frame on a phone.
+- **Performance.** The look is built from things that cost nothing to run: system
+  fonts (no download), CSS gradients rasterised once, and static shadows. No web
+  fonts, no images beyond the icons, no filters or blurs on scrolling surfaces,
+  and exactly one animation in the whole app — a compositor-only opacity pulse on
+  the blind banner. The sticky header is opaque rather than translucent, because a
+  blurred bar repaints on every scroll frame on a phone.

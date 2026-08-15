@@ -61,8 +61,11 @@ export function YourTurnBanner({
         aria-hidden
         className="flash-ring pointer-events-none absolute inset-0 rounded-[var(--radius-card)] ring-2 ring-brass-400"
       />
-      <span aria-hidden className="display text-3xl leading-none text-brass-400">
-        {role === 'dealer' ? '\u2660' : '\u25C6'}
+      <span
+        aria-hidden
+        className={`display text-3xl leading-none ${role === 'dealer' ? 'text-brass-400' : 'text-rouge-400'}`}
+      >
+        {role === 'dealer' ? '\u2660' : '\u2666'}
       </span>
       <div className="relative">
         <p className="display text-lg font-semibold text-brass-400">{copy.title}</p>

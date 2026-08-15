@@ -59,14 +59,14 @@ export function StackInput({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1 rounded-lg bg-black/30 p-1 text-sm">
+      <div className="flex gap-1 rounded-lg border border-brass-500/20 bg-night-950/70 p-1 text-sm">
         {(['money', 'chips'] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
             className={`pressable flex-1 rounded-md py-1.5 ${
-              mode === m ? 'bg-white/10 font-medium' : 'text-ink-500'
+              mode === m ? 'bg-felt-700 font-medium text-brass-400' : 'text-ink-500'
             }`}
           >
             {m === 'money' ? 'Amount' : 'Count chips'}

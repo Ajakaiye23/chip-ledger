@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { GuideLink } from '@/components/guide-link';
 import { SignIn } from '@/components/sign-in';
 import { SetupNotice } from '@/components/setup-notice';
 import { InstallHint } from '@/components/install-prompt';
@@ -46,14 +47,20 @@ export default async function LandingPage({
 
         <ul className="max-w-md space-y-2.5 text-sm text-ink-300">
           {[
-            'Set chip values per round — blue is $5 tonight, $10 next round.',
+            'Set what each chip colour is worth once, when you open the table.',
             'Buy in for as many chips as you like, rebuy any time.',
             'Leave and rejoin, or join at round nine — nothing is lost.',
-            'Per-round profit for every player, and lifetime stats for you.',
+            'Blinds, the dealer button, and a flash when a round is on you.',
+            'Per-round profit, a monthly leaderboard, and lifetime stats.',
             'Settle up with the smallest possible number of payments.',
-          ].map((line) => (
-            <li key={line} className="flex gap-2.5">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brass-500" />
+          ].map((line, i) => (
+            <li key={line} className="flex items-start gap-2.5">
+              <span
+                aria-hidden
+                className={`mt-0.5 shrink-0 ${i % 2 === 0 ? 'text-brass-400' : 'text-rouge-400'}`}
+              >
+                {i % 2 === 0 ? '♠' : '♦'}
+              </span>
               {line}
             </li>
           ))}
@@ -61,7 +68,8 @@ export default async function LandingPage({
       </section>
 
       <section className="w-full lg:max-w-sm">
-        <div className="card space-y-5 p-6">
+        <div className="card relative space-y-5 overflow-hidden p-6">
+          <span className="card-back absolute inset-x-0 top-0 h-1" aria-hidden />
           <div>
             <h2 className="display text-xl font-semibold">Sign in</h2>
             <p className="mt-1 text-sm text-ink-500">
@@ -75,12 +83,15 @@ export default async function LandingPage({
             <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>
           ) : null}
 
-          <Link
-            href="/preview"
-            className="block text-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
-          >
-            Have a look around first
-          </Link>
+          <div className="space-y-2">
+            <GuideLink />
+            <Link
+              href="/preview"
+              className="block text-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
+            >
+              Have a look around first
+            </Link>
+          </div>
         </div>
         <InstallHint />
       </section>

@@ -20,15 +20,19 @@ export function Leaderboard({ rows, now }: { rows: LeaderboardRow[]; now?: numbe
           {rows.map((row, i) => (
             <li
               key={row.key}
-              className={`flex items-center gap-3 px-4 py-3 ${row.isYou ? 'bg-brass-500/10' : ''}`}
+              className={`flex items-center gap-3 px-4 py-3 ${
+                row.isYou ? 'bg-brass-500/10 ring-1 ring-inset ring-brass-500/25' : ''
+              }`}
             >
               <span
                 className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
                   i === 0
-                    ? 'bg-brass-500 text-felt-950'
-                    : i === 1 || i === 2
-                      ? 'bg-white/15 text-ink-100'
-                      : 'text-ink-500'
+                    ? 'bg-gradient-to-b from-brass-400 to-brass-500 text-night-950'
+                    : i === 1
+                      ? 'bg-white/20 text-ink-100'
+                      : i === 2
+                        ? 'bg-rouge-500/70 text-white'
+                        : 'text-ink-500'
                 }`}
               >
                 {i + 1}

@@ -174,7 +174,7 @@ function BlindsStrip({
   const headsUp = smallBlind && dealer && smallBlind.id === dealer.id;
 
   return (
-    <div className="rounded-xl bg-black/25 p-3">
+    <div className="rounded-xl border border-brass-500/15 bg-night-950/60 p-3">
       <div className="flex items-baseline justify-between gap-3">
         <span className="plate">
           {upcoming ? 'Next deal' : 'This deal'}
