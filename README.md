@@ -30,15 +30,15 @@ friends to tell two Sams apart and no more of anyone's name than that needs.
 A game counts toward a window based on when it wrapped up, so one long night
 doesn't smear across two weeks.
 
-**Tables.** A table is a shared room with a join code. Anyone with the code takes
-a seat. The host can also add people who don't have the app at all — they get a
-seat that the host keeps the books for.
+**Tables.** A shared room with a join code, seating up to eight. Anyone with the
+code takes a seat; the host can also add people who don't have the app at all,
+and keeps the books for them. The eight-seat limit is enforced in the database,
+not the UI, because a join code is a link and two people can tap it at once.
 
-**Chip values, set when the table opens.** Chosen once at creation and used to
-score the whole night. Each round still stores its own snapshot of them, which is
-what keeps a closed round's numbers correct even if the host does re-price
-mid-game (possible, but tucked away, because it usually means someone made a
-mistake).
+**Only the chips you're using.** Switch colours on and off — most home games run
+three of the five — and set what each is worth. Chosen once when the table opens
+and used for every count that night. A colour switched off isn't deleted; turning
+it back on remembers what it was worth.
 
 **Blinds and the button.** Set the small and big blind when you open the table.
 "Next hand" moves the button one seat, the app says who posts what, and it gets
@@ -61,9 +61,10 @@ making a new one, so nothing is ever orphaned.
 **The night.** One screen: what everyone started with, what they ended with, the
 difference, and the log of money going on and off the table.
 
-**Ranks.** Points for nights you finish up — one for a win, two for up $25, three
-for up $100 — carrying you from Rail bird to Legend. Losing nights cost nothing;
-this is a record of what you've done, not a rating that punishes a bad beat.
+**Ranks.** Points for nights you finish up — one for a win, two for up $10, three
+for up $20 — carrying you from Rail bird to Legend in about a season of home
+games. Losing nights cost nothing; this is a record of what you've done, not a
+rating that punishes a bad beat.
 
 **Monthly leaderboard.** Everyone you played with this calendar month, ranked by
 what they're up. Resets on the 1st.
@@ -180,7 +181,7 @@ everyone has been counted up.
 ## Tests
 
 ```bash
-npm test          # settlement, ledger, blinds, ranks and names (47 tests)
+npm test          # settlement, ledger, blinds, ranks and names (49 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
 ```
@@ -189,8 +190,9 @@ npm run typecheck
 database, stubs out the parts of Supabase the migration depends on (the `auth`
 schema, `auth.uid()`, the `anon`/`authenticated` roles), applies the migration
 and then plays out a game: a stranger is checked to be unable to read the table,
-a non-host is checked to be unable to open or re-price a round, and rejoining is
-checked to reuse the existing seat.
+a player is checked to be able to record their own final count but not anybody
+else's, rejoining is checked to reuse the existing seat, and a ninth player is
+checked to be turned away from a full table.
 
 ## Layout
 

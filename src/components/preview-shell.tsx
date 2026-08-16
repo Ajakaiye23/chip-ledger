@@ -11,7 +11,7 @@ export function PreviewShell() {
 
   return (
     <div>
-      <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-brass-500/15 px-4 py-2 text-xs text-brass-400">
+      <div className="flex flex-wrap items-center justify-center gap-3 border-b border-brass-500/25 bg-brass-500/10 px-4 py-2 text-xs text-brass-400">
         <span>Preview with made-up data — nothing you do here is saved.</span>
         <div className="flex gap-1">
           {(['game', 'dashboard'] as const).map((v) => (

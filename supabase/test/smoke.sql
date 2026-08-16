@@ -11,11 +11,12 @@
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'host@example.com', '{"full_name":"Host Hannah"}'),
   ('22222222-2222-2222-2222-222222222222', 'sam@example.com', '{"full_name":"Sam"}'),
-  ('33333333-3333-3333-3333-333333333333', 'nosy@example.com', '{"full_name":"Nosy Neighbour"}');
+  ('33333333-3333-3333-3333-333333333333', 'nosy@example.com', '{"full_name":"Nosy Neighbour"}'),
+  ('44444444-4444-4444-4444-444444444444', 'outsider@example.com', '{"full_name":"Never Played"}');
 
 do $$
 begin
-  assert (select count(*) from public.profiles) = 3,
+  assert (select count(*) from public.profiles) = 4,
     'the auth trigger should have created a profile per user';
   assert (select display_name from public.profiles
           where id = '11111111-1111-1111-1111-111111111111') = 'Host Hannah',
@@ -158,6 +159,68 @@ begin
 end;
 $$;
 
+-- --------------------------------------------------------- table capacity --
+
+set test.uid = '11111111-1111-1111-1111-111111111111';
+
+-- Two seats are taken; the host fills the rest with guests.
+insert into public.game_players (game_id, display_name)
+select :'game_id', 'Guest ' || i from generate_series(1, 6) i;
+
+do $$
+begin
+  assert public.seats_taken((select id from public.games)) = 8, 'eight seats taken';
+end;
+$$;
+
+-- A ninth must be refused, whether the host adds them...
+do $$
+declare
+  denied boolean := false;
+begin
+  begin
+    insert into public.game_players (game_id, display_name)
+    values ((select id from public.games), 'One too many');
+  exception when others then
+    denied := true;
+  end;
+  assert denied, 'a ninth seat should be refused';
+end;
+$$;
+
+-- ...or somebody tries to join with the code.
+select set_config('test.code', :'game_code', false);
+
+set test.uid = '33333333-3333-3333-3333-333333333333';
+do $do$
+declare
+  denied boolean := false;
+begin
+  begin
+    perform public.join_game(current_setting('test.code'), 'Nosy');
+  exception when others then
+    denied := true;
+  end;
+  assert denied, 'joining a full table should be refused';
+end;
+$do$;
+
+-- A seat freed up can be taken.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+update public.game_players set status = 'left', left_at = now()
+where display_name = 'Guest 6';
+
+set test.uid = '33333333-3333-3333-3333-333333333333';
+select public.join_game(:'game_code', 'Nosy') as late_join \gset
+
+do $$
+begin
+  assert public.seats_taken((select id from public.games)) = 8, 'the freed seat was taken';
+  assert exists (select 1 from public.game_players where display_name = 'Nosy'),
+    'the late joiner should be seated';
+end;
+$$;
+
 -- ------------------------------------------------------------- settlement --
 
 set test.uid = '11111111-1111-1111-1111-111111111111';
@@ -171,11 +234,13 @@ begin
 end;
 $$;
 
-set test.uid = '33333333-3333-3333-3333-333333333333';
+set test.uid = '44444444-4444-4444-4444-444444444444';
 do $$
 begin
   assert (select count(*) from public.settlements) = 0,
-    'a stranger must not see the settlement either';
+    'someone who never sat down must not see the settlement';
+  assert (select count(*) from public.games) = 0,
+    'nor the game itself';
 end;
 $$;
 

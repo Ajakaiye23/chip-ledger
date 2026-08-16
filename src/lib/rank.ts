@@ -3,15 +3,16 @@ import type { GameSummary } from './stats';
 /**
  * Ranks come from nights you finished up, not from how much money you have.
  *
- * A winning night is worth a point; a good winning night is worth more. Losing
- * nights cost nothing — this is a record of what you've done, not a rating that
- * punishes you for a bad beat, and a ladder that can drop you tends to stop
- * people playing.
+ * A winning night is worth a point, up $10 is worth two, up $20 is worth three.
+ * The numbers are deliberately low: this is a dime-blind home game, so a good
+ * night is twenty dollars, not two hundred, and a ladder nobody climbs is just
+ * decoration. Losing nights cost nothing — a rating that can drop you for a bad
+ * beat tends to stop people playing.
  */
 export const WIN_POINT_THRESHOLDS = [
-  { atLeastCents: 0, points: 1 },      // up at all
-  { atLeastCents: 2500, points: 2 },   // up $25
-  { atLeastCents: 10000, points: 3 },  // up $100
+  { atLeastCents: 0, points: 1 },     // up at all
+  { atLeastCents: 1000, points: 2 },  // up $10
+  { atLeastCents: 2000, points: 3 },  // up $20
 ] as const;
 
 export function pointsForNight(netCents: number): number {
@@ -30,13 +31,13 @@ export type Rank = {
 
 export const RANKS: Rank[] = [
   { name: 'Rail bird', at: 0 },
-  { name: 'Limper', at: 2 },
-  { name: 'Grinder', at: 5 },
-  { name: 'Regular', at: 10 },
-  { name: 'Shark', at: 18 },
-  { name: 'Rounder', at: 30 },
-  { name: 'High roller', at: 45 },
-  { name: 'Legend', at: 65 },
+  { name: 'Limper', at: 1 },
+  { name: 'Grinder', at: 3 },
+  { name: 'Regular', at: 6 },
+  { name: 'Shark', at: 10 },
+  { name: 'Rounder', at: 15 },
+  { name: 'High roller', at: 22 },
+  { name: 'Legend', at: 30 },
 ];
 
 export type RankStanding = {

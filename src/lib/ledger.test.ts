@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chipsToCents, computeGameState, makeChange } from './ledger';
 import {
+  CHIP_PALETTE,
   DEFAULT_CHIPS,
   chipGranularityCents,
   type ChipDenomination,
@@ -41,8 +42,18 @@ describe('chip maths', () => {
   });
 
   it('breaks an amount into the fewest chips', () => {
-    expect(makeChange(1_35, DEFAULT_CHIPS).chips).toEqual({ green: 1, red: 1, white: 1 });
-    expect(makeChange(13_75, DEFAULT_CHIPS).chips).toEqual({ black: 2, green: 3, blue: 1, red: 1 });
+    expect(makeChange(1_35, CHIP_PALETTE).chips).toEqual({ green: 1, red: 1, white: 1 });
+    expect(makeChange(13_75, CHIP_PALETTE).chips).toEqual({ black: 2, green: 3, blue: 1, red: 1 });
+  });
+
+  it('works from whatever subset of colours is actually in play', () => {
+    // A table running white/red/blue only, with no dollar or five-dollar chip.
+    expect(DEFAULT_CHIPS.map((c) => c.key)).toEqual(['white', 'red', 'blue']);
+    const made = makeChange(3_35, DEFAULT_CHIPS);
+    expect(made.exact).toBe(true);
+    expect(chipsToCents(made.chips, DEFAULT_CHIPS)).toBe(3_35);
+    expect(made.chips.green).toBeUndefined();
+    expect(made.chips.black).toBeUndefined();
   });
 
   // Greedy takes a quarter for 30c and then can't place the last nickel.
@@ -82,6 +93,7 @@ describe('chip maths', () => {
   });
 
   it('reports what the smallest expressible amount is', () => {
+    expect(chipGranularityCents(CHIP_PALETTE)).toBe(5);
     expect(chipGranularityCents(DEFAULT_CHIPS)).toBe(5);
     expect(chipGranularityCents([{ key: 'a', label: 'A', color: '#fff', valueCents: 100 }])).toBe(100);
   });

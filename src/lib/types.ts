@@ -67,14 +67,25 @@ export type Payment = {
   amountCents: number;
 };
 
-/** Dime up: small enough for a 10c/25c blind structure without silly chip counts. */
-export const DEFAULT_CHIPS: ChipDenomination[] = [
+/** The colours a standard set comes with, and what they're worth by default. */
+export const CHIP_PALETTE: ChipDenomination[] = [
   { key: 'white', label: 'White', color: '#f4f4f5', valueCents: 10 },
   { key: 'red', label: 'Red', color: '#dc2626', valueCents: 25 },
   { key: 'blue', label: 'Blue', color: '#2563eb', valueCents: 50 },
   { key: 'green', label: 'Green', color: '#16a34a', valueCents: 100 },
   { key: 'black', label: 'Black', color: '#18181b', valueCents: 500 },
 ];
+
+/**
+ * What a new table starts with. Three colours, because most home games only ever
+ * use three — the rest are a switch away in the chip editor.
+ */
+export const DEFAULT_CHIPS: ChipDenomination[] = CHIP_PALETTE.filter((c) =>
+  ['white', 'red', 'blue'].includes(c.key),
+);
+
+/** A table seats eight. */
+export const MAX_SEATS = 8;
 
 export const DEFAULT_SMALL_BLIND_CENTS = 10;
 export const DEFAULT_BIG_BLIND_CENTS = 25;

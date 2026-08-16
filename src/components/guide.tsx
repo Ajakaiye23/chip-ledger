@@ -18,7 +18,7 @@ const STEPS: Step[] = [
     suitClass: 'text-ink-100',
     title: 'One person opens the table',
     body:
-      'Name it, set what each chip colour is worth, and set the blinds. That happens once, at the start, and scores the whole night. Everyone else joins with the six-character code — tap the code to text it round.',
+      'Name it, switch on the chip colours you\u2019re actually using and set what they\u2019re worth, then set the blinds. That happens once, at the start. Everyone else joins with the six-character code — tap the code to text it round. Eight seats to a table.',
   },
   {
     suit: '♥',
@@ -30,7 +30,7 @@ const STEPS: Step[] = [
   {
     suit: '♦',
     suitClass: 'text-rouge-400',
-    title: 'Play a round, then count up',
+    title: 'Play, then count up once',
     body:
       'A round is as long as you want — one hand or the whole night. When it ends the host counts each player’s chips by colour, and the difference from what they started with is their profit. The button moves a seat and the app flashes at whoever is on the blinds.',
   },

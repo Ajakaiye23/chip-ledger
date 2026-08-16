@@ -25,13 +25,13 @@ describe('points', () => {
 
   it('gives a point for finishing up at all', () => {
     expect(pointsForNight(1)).toBe(1);
-    expect(pointsForNight(2400)).toBe(1);
+    expect(pointsForNight(999)).toBe(1);
   });
 
-  it('gives more for a bigger night', () => {
-    expect(pointsForNight(2500)).toBe(2);
-    expect(pointsForNight(9999)).toBe(2);
-    expect(pointsForNight(10000)).toBe(3);
+  it('gives more for a bigger night, at home-game amounts', () => {
+    expect(pointsForNight(1000)).toBe(2);   // up $10
+    expect(pointsForNight(1999)).toBe(2);
+    expect(pointsForNight(2000)).toBe(3);   // up $20
     expect(pointsForNight(50000)).toBe(3);
   });
 });
@@ -41,14 +41,23 @@ describe('ranks', () => {
     const standing = standingForPoints(0);
     expect(standing.rank.name).toBe('Rail bird');
     expect(standing.next?.name).toBe('Limper');
-    expect(standing.toNext).toBe(2);
+    expect(standing.toNext).toBe(1);
   });
 
   it('moves up as points accumulate', () => {
-    expect(standingForPoints(2).rank.name).toBe('Limper');
-    expect(standingForPoints(5).rank.name).toBe('Grinder');
-    expect(standingForPoints(10).rank.name).toBe('Regular');
-    expect(standingForPoints(18).rank.name).toBe('Shark');
+    expect(standingForPoints(1).rank.name).toBe('Limper');
+    expect(standingForPoints(3).rank.name).toBe('Grinder');
+    expect(standingForPoints(6).rank.name).toBe('Regular');
+    expect(standingForPoints(10).rank.name).toBe('Shark');
+  });
+
+  it('gets somewhere in a season of home games', () => {
+    // Ten nights, half of them winners with a couple of good ones:
+    // $30 and $25 are three each, $12 is two, $5 and $8 are one each.
+    const nights = [30, -10, 12, -20, 5, -8, 25, -15, 8, -5].map((d) => night(d));
+    const standing = standingFor(nights);
+    expect(standing.points).toBe(3 + 2 + 1 + 3 + 1);
+    expect(standing.rank.name).toBe('Shark');
   });
 
   it('tops out without a next rank or a broken progress bar', () => {
@@ -60,8 +69,8 @@ describe('ranks', () => {
   });
 
   it('reports progress through the current rank', () => {
-    // Grinder is 5, Regular is 10: 7 points is two of the five along.
-    expect(standingForPoints(7).progress).toBeCloseTo(0.4);
+    // Grinder is 3, Regular is 6: 4 points is one of the three along.
+    expect(standingForPoints(4).progress).toBeCloseTo(1 / 3);
   });
 
   it('never goes backwards for a losing night', () => {

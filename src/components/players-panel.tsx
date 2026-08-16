@@ -6,7 +6,7 @@ import type { GameState, PlayerState } from '@/lib/ledger';
 import { addGuestPlayer, clearFinalCount, recordMoney, setFinalCount, setPlayerStatus } from '@/lib/actions';
 import { blindsFor, type BlindAssignment } from '@/lib/blinds';
 import { formatMoney } from '@/lib/money';
-import type { ChipCounts, ChipDenomination, GamePlayer } from '@/lib/types';
+import { MAX_SEATS, type ChipCounts, type ChipDenomination, type GamePlayer } from '@/lib/types';
 import { StackInput, type StackValue } from './stack-input';
 import { Button, ChipDot, Empty, Field, Money, Sheet, inputClass } from './ui';
 
@@ -40,12 +40,15 @@ export function PlayersPanel({
 
   const seated = state.players.filter((p) => p.player.status !== 'left');
   const gone = state.players.filter((p) => p.player.status === 'left');
+  const full = seated.length >= MAX_SEATS;
 
   return (
     <div className="space-y-6">
       <section>
         <div className="mb-1.5 flex items-baseline justify-between">
-          <h2 className="plate">Seats</h2>
+          <h2 className="plate">
+            Seats <span className="text-ink-500/70">{seated.length}/{MAX_SEATS}</span>
+          </h2>
           <span className="plate">Stack · net</span>
         </div>
 
@@ -90,8 +93,13 @@ export function PlayersPanel({
       {!settled ? (
         <div className="flex flex-col gap-2 sm:flex-row">
           {isHost ? (
-            <Button variant="ghost" className="flex-1" onClick={() => setAddingGuest(true)}>
-              Add a player without the app
+            <Button
+              variant="ghost"
+              className="flex-1"
+              disabled={full}
+              onClick={() => setAddingGuest(true)}
+            >
+              {full ? 'Table is full' : 'Add a player without the app'}
             </Button>
           ) : null}
           {me ? (
