@@ -4,7 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Dashboard } from './dashboard';
 import { GameRoomView } from './game-room';
-import { PREVIEW_USER_ID, sampleGame, sampleLeaderboard, sampleSummaries } from '@/lib/sample-game';
+import {
+  PREVIEW_USER_ID,
+  sampleGame,
+  sampleKnownPlayers,
+  sampleLeaderboard,
+  sampleOpenGames,
+  sampleRequests,
+  sampleSummaries,
+} from '@/lib/sample-game';
 
 export function PreviewShell() {
   const [view, setView] = useState<'dashboard' | 'game'>('game');
@@ -48,6 +56,7 @@ export function PreviewShell() {
           displayName="Hannah B."
           data={sampleGame}
           syncing={false}
+          friends={sampleKnownPlayers().filter((k) => k.friendship_status === 'accepted')}
           onChange={() => {}}
         />
       ) : (
@@ -57,6 +66,9 @@ export function PreviewShell() {
           avatarUrl={null}
           summaries={summaries}
           leaderboard={sampleLeaderboard()}
+          known={sampleKnownPlayers()}
+          openGames={sampleOpenGames()}
+          requests={sampleRequests()}
         />
       )}
     </div>

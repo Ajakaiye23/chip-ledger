@@ -14,8 +14,10 @@ import {
   type ChipDenomination,
 } from '@/lib/types';
 import type { LeaderboardRow } from '@/lib/leaderboard';
+import type { GameRequest, KnownPlayer, OpenGame } from '@/lib/types';
 import { ChipValuesEditor } from './chip-values-editor';
 import { GuideButton, GuideSheet, useGuide } from './guide';
+import { FriendsPanel } from './friends-panel';
 import { Leaderboard } from './leaderboard';
 import { RankCard } from './rank-card';
 import { NameSheet } from './name-sheet';
@@ -28,6 +30,9 @@ export function Dashboard({
   avatarUrl,
   summaries,
   leaderboard,
+  known = [],
+  openGames = [],
+  requests = [],
   needsName = false,
 }: {
   userId: string;
@@ -35,6 +40,9 @@ export function Dashboard({
   avatarUrl: string | null;
   summaries: GameSummary[];
   leaderboard: LeaderboardRow[];
+  known?: KnownPlayer[];
+  openGames?: OpenGame[];
+  requests?: Array<GameRequest & { game_name: string; other_name: string }>;
   /** True until someone has set a proper "first name, last initial". */
   needsName?: boolean;
 }) {
@@ -116,6 +124,10 @@ export function Dashboard({
         </Button>
       </section>
 
+      {requests.length > 0 || known.some((k) => k.friendship_status === 'pending' && k.they_asked) ? (
+        <FriendsPanel known={known} openGames={openGames} requests={requests} />
+      ) : null}
+
       <RankCard summaries={summaries} />
 
       <Leaderboard rows={leaderboard} />
@@ -146,6 +158,10 @@ export function Dashboard({
         )}
       </section>
 
+
+      {requests.length === 0 && !known.some((k) => k.friendship_status === 'pending' && k.they_asked) ? (
+        <FriendsPanel known={known} openGames={openGames} requests={requests} />
+      ) : null}
 
       <InstallHint />
 

@@ -11,6 +11,7 @@ import { HandPanel } from './hand-panel';
 import { NightPanel } from './night-panel';
 import { PlayersPanel } from './players-panel';
 import { SettlePanel } from './settle-panel';
+import type { KnownPlayer } from '@/lib/types';
 import { Money } from './ui';
 import { YourTurnBanner, roleFor } from './your-turn';
 
@@ -20,10 +21,12 @@ export function GameRoom({
   userId,
   displayName,
   initial,
+  friends = [],
 }: {
   userId: string;
   displayName: string;
   initial: GameData;
+  friends?: KnownPlayer[];
 }) {
   const { data, refresh, syncing } = useGame(initial);
   return (
@@ -32,6 +35,7 @@ export function GameRoom({
       displayName={displayName}
       data={data}
       syncing={syncing}
+      friends={friends}
       onChange={refresh}
     />
   );
@@ -43,12 +47,14 @@ export function GameRoomView({
   displayName,
   data,
   syncing,
+  friends = [],
   onChange,
 }: {
   userId: string;
   displayName: string;
   data: GameData;
   syncing: boolean;
+  friends?: KnownPlayer[];
   onChange: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('table');
@@ -157,6 +163,7 @@ export function GameRoomView({
           displayName={displayName}
           isHost={isHost}
           settled={settled}
+          friends={friends}
           onChange={onChange}
         />
       ) : null}

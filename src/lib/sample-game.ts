@@ -2,7 +2,15 @@ import type { GameData } from '@/hooks/use-game';
 import { computeGameState } from './ledger';
 import { monthlyLeaderboard, type LeaderboardRow } from './leaderboard';
 import { playedAt, type GameSummary } from './stats';
-import type { ChipDenomination, Game, GamePlayer, LedgerEntry } from './types';
+import type {
+  ChipDenomination,
+  Game,
+  GamePlayer,
+  GameRequest,
+  KnownPlayer,
+  LedgerEntry,
+  OpenGame,
+} from './types';
 
 /**
  * A made-up Friday night, used by /preview so the app can be looked at before any
@@ -160,4 +168,68 @@ export function sampleSummaries(): GameSummary[] {
   });
 
   return [{ game, state: mine, playedAt: playedAt(game) }, ...past];
+}
+
+/** People this account has played with, in every friendship state. */
+export function sampleKnownPlayers(): KnownPlayer[] {
+  return [
+    {
+      user_id: 'user-sam',
+      display_name: 'Sam K.',
+      avatar_url: null,
+      nights_together: 6,
+      friendship_status: 'accepted',
+      friendship_id: 'f1',
+      they_asked: false,
+    },
+    {
+      user_id: 'user-dev',
+      display_name: 'Dev R.',
+      avatar_url: null,
+      nights_together: 4,
+      friendship_status: 'pending',
+      friendship_id: 'f2',
+      they_asked: true,
+    },
+    {
+      user_id: 'user-mo',
+      display_name: 'Mo T.',
+      avatar_url: null,
+      nights_together: 2,
+      friendship_status: 'none',
+      friendship_id: null,
+      they_asked: false,
+    },
+  ];
+}
+
+/** A friend's table that's still running. */
+export function sampleOpenGames(): OpenGame[] {
+  return [
+    {
+      game_id: 'game-sams',
+      name: "Sam's Saturday",
+      host_name: 'Sam K.',
+      seats_taken: 5,
+      already_in: false,
+      pending_request: false,
+    },
+  ];
+}
+
+/** An invitation waiting to be answered. */
+export function sampleRequests(): Array<GameRequest & { game_name: string; other_name: string }> {
+  return [
+    {
+      id: 'r1',
+      game_id: 'game-sams',
+      user_id: PREVIEW_USER_ID,
+      kind: 'invite',
+      status: 'pending',
+      created_by: 'user-sam',
+      created_at: new Date().toISOString(),
+      game_name: "Sam's Saturday",
+      other_name: 'Sam K.',
+    },
+  ];
 }

@@ -11,9 +11,16 @@ import {
   setPlayerStatus,
   transferHost,
 } from '@/lib/actions';
+import { inviteFriend } from '@/lib/actions';
 import { blindsFor, type BlindAssignment } from '@/lib/blinds';
 import { formatMoney } from '@/lib/money';
-import { MAX_SEATS, type ChipCounts, type ChipDenomination, type GamePlayer } from '@/lib/types';
+import {
+  MAX_SEATS,
+  type ChipCounts,
+  type ChipDenomination,
+  type GamePlayer,
+  type KnownPlayer,
+} from '@/lib/types';
 import { StackInput, type StackValue } from './stack-input';
 import { Button, ChipDot, Empty, Field, Money, Sheet, inputClass } from './ui';
 
@@ -26,6 +33,7 @@ export function PlayersPanel({
   displayName,
   isHost,
   settled,
+  friends = [],
   onChange,
 }: {
   data: GameData;
@@ -34,6 +42,8 @@ export function PlayersPanel({
   displayName: string;
   isHost: boolean;
   settled: boolean;
+  /** Friends who could be invited to this table. */
+  friends?: KnownPlayer[];
   onChange: () => void;
 }) {
   const [acting, setActing] = useState<PlayerState | null>(null);
@@ -42,6 +52,7 @@ export function PlayersPanel({
   const [error, setError] = useState<string | null>(null);
   const [money, setMoneySheet] = useState<{ player: GamePlayer; kind: 'buy_in' | 'cash_out' } | null>(null);
   const [addingGuest, setAddingGuest] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   const me = data.players.find((p) => p.user_id === userId) ?? null;
   const chipValues = data.game.default_chip_values;
@@ -105,6 +116,16 @@ export function PlayersPanel({
 
       {!settled ? (
         <div className="flex flex-col gap-2 sm:flex-row">
+          {friends.length > 0 ? (
+            <Button
+              variant="ghost"
+              className="flex-1"
+              disabled={full}
+              onClick={() => setInviting(true)}
+            >
+              {full ? 'Table is full' : 'Invite a friend'}
+            </Button>
+          ) : null}
           {isHost ? (
             <Button
               variant="ghost"
@@ -212,6 +233,15 @@ export function PlayersPanel({
       />
 
       {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
+
+      <InviteSheet
+        open={inviting}
+        onClose={() => setInviting(false)}
+        gameId={data.game.id}
+        friends={friends.filter(
+          (f) => !data.players.some((p) => p.user_id === f.user_id && p.status !== 'left'),
+        )}
+      />
 
       <AddGuestSheet
         open={addingGuest}
@@ -685,6 +715,73 @@ function HandOverSheet({
           You can hand the table over at any time from a player&apos;s seat, and you keep your
           chips and your history either way.
         </p>
+      </div>
+    </Sheet>
+  );
+}
+
+/** Invite a friend to this table. They get it on their dashboard. */
+function InviteSheet({
+  open,
+  onClose,
+  gameId,
+  friends,
+}: {
+  open: boolean;
+  onClose: () => void;
+  gameId: string;
+  friends: KnownPlayer[];
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sent, setSent] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Invite a friend">
+      <div className="space-y-5">
+        <p className="text-sm text-ink-500">
+          They&apos;ll see the invitation on their dashboard and can take a seat from there.
+          No code to type.
+        </p>
+
+        {friends.length === 0 ? (
+          <Empty>Every one of your friends is already at this table.</Empty>
+        ) : (
+          <ul className="card">
+            {friends.map((f) => (
+              <li
+                key={f.user_id}
+                className="ledger-row flex items-center gap-3 px-4 py-3 last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 truncate">{f.display_name}</span>
+                {sent.includes(f.user_id) ? (
+                  <span className="plate shrink-0 text-brass-400">invited</span>
+                ) : (
+                  <Button
+                    size="sm"
+                    disabled={busy === f.user_id}
+                    onClick={async () => {
+                      setBusy(f.user_id);
+                      setError(null);
+                      try {
+                        await inviteFriend(gameId, f.user_id);
+                        setSent((s) => [...s, f.user_id]);
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : 'Could not invite them.');
+                      } finally {
+                        setBusy(null);
+                      }
+                    }}
+                  >
+                    Invite
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
       </div>
     </Sheet>
   );

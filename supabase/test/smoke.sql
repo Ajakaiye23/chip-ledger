@@ -357,5 +357,145 @@ begin
 end;
 $$;
 
+-- ------------------------------------------------------------------ friends --
+
+-- You can only befriend someone you've actually played with.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+do $$
+begin
+  assert public.have_played_together('22222222-2222-2222-2222-222222222222'),
+    'Hannah and Sam shared a table';
+  assert not public.have_played_together('44444444-4444-4444-4444-444444444444'),
+    'nobody has played with the outsider';
+end;
+$$;
+
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.send_friend_request('44444444-4444-4444-4444-444444444444');
+  exception when others then denied := true;
+  end;
+  assert denied, 'befriending a stranger must be refused';
+end;
+$$;
+
+select public.send_friend_request('22222222-2222-2222-2222-222222222222') as asked \gset
+
+do $$
+begin
+  assert (select status from public.friendships) = 'pending', 'a request starts pending';
+  assert not public.are_friends('22222222-2222-2222-2222-222222222222'),
+    'pending is not yet friends';
+end;
+$$;
+
+set test.uid = '22222222-2222-2222-2222-222222222222';
+select public.respond_to_friend_request((select id from public.friendships), true);
+
+do $$
+begin
+  assert public.are_friends('11111111-1111-1111-1111-111111111111'),
+    'accepting makes them friends';
+end;
+$$;
+
+set test.uid = '11111111-1111-1111-1111-111111111111';
+do $$
+begin
+  assert public.are_friends('22222222-2222-2222-2222-222222222222'),
+    'friendship reads the same from either side';
+  assert (select count(*) from public.people_i_have_played_with()) >= 1,
+    'the people you have played with are listed';
+end;
+$$;
+
+set test.uid = '44444444-4444-4444-4444-444444444444';
+do $$
+begin
+  assert (select count(*) from public.friendships) = 0,
+    'a friendship is private to the pair';
+end;
+$$;
+
+-- ------------------------------------------------------- inviting a friend --
+
+-- A second table, which Sam is not at.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+select public.create_game('Second table', '[]'::jsonb, 'Hannah') as second \gset
+select id as second_id from public.games where name = 'Second table' \gset
+
+-- A stranger can't be invited.
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.invite_friend(
+      (select id from public.games where name = 'Second table'),
+      '44444444-4444-4444-4444-444444444444');
+  exception when others then denied := true;
+  end;
+  assert denied, 'only friends can be invited';
+end;
+$$;
+
+select public.invite_friend(:'second_id', '22222222-2222-2222-2222-222222222222') as invited \gset
+
+do $$
+begin
+  assert (select count(*) from public.game_requests where kind = 'invite') = 1,
+    'the invitation was recorded';
+end;
+$$;
+
+-- Hannah can't answer an invitation addressed to Sam.
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.respond_to_game_request(
+      (select id from public.game_requests where kind = 'invite'), true);
+  exception when others then denied := true;
+  end;
+  assert denied, 'an invitation is the invitee''s to answer';
+end;
+$$;
+
+-- Sam accepts and is seated.
+set test.uid = '22222222-2222-2222-2222-222222222222';
+select public.respond_to_game_request(
+  (select id from public.game_requests where kind = 'invite'), true);
+
+do $$
+begin
+  assert exists (select 1 from public.game_players gp
+                 join public.games g on g.id = gp.game_id
+                 where g.name = 'Second table' and gp.user_id = auth.uid()),
+    'accepting an invitation seats you';
+  assert (select status from public.game_requests where kind = 'invite') = 'accepted',
+    'and marks the invitation accepted';
+end;
+$$;
+
+-- A friend's running table shows up, and asking to join it twice is refused.
+do $$
+begin
+  assert (select count(*) from public.friends_open_games()) >= 1,
+    'a friend''s open table is visible';
+end;
+$$;
+
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.request_to_join((select id from public.games where name = 'Second table'));
+  exception when others then denied := true;
+  end;
+  assert denied, 'you cannot ask to join a table you are already at';
+end;
+$$;
+
 reset role;
 \echo '--- schema smoke test passed ---'

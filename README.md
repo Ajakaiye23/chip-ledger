@@ -68,10 +68,18 @@ making a new one, so nothing is ever orphaned.
 **The night.** One screen: what everyone started with, what they ended with, the
 difference, and the log of money going on and off the table.
 
-**Ranks.** Points for nights you finish up — one for a win, two for up $10, three
-for up $20 — carrying you from Rail bird to Legend in about a season of home
-games. Losing nights cost nothing; this is a record of what you've done, not a
-rating that punishes a bad beat.
+**Ranks that mean something.** Three things keep a lucky streak from carrying
+anyone up the ladder: nights are scored on *return* (what you made against what
+you put in, so a $20 win on a $20 buy-in beats $20 on $200), losing nights take
+points off, and every rank needs a minimum number of nights as well as points.
+Four brilliant sessions won't make you a Shark — variance over a handful of nights
+is enormous, and an honest rating has to wait for the sample. Winning is worth
+more than losing costs, so a break-even player still drifts slowly up.
+
+**Friends.** You can befriend anyone you've actually sat at a table with — there
+is no search, no directory, no way to reach a stranger, which is the entire
+anti-spam design. Friends can be invited straight to a table, and you can ask to
+join a friend's table without needing the code.
 
 **Monthly leaderboard.** Everyone you played with this calendar month, ranked by
 what they're up. Resets on the 1st.
@@ -199,7 +207,7 @@ everyone has been counted up.
 ## Tests
 
 ```bash
-npm test          # settlement, ledger, blinds, ranks and names (49 tests)
+npm test          # settlement, ledger, blinds, ranks and names (52 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
 ```

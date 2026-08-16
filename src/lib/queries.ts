@@ -2,7 +2,15 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { computeGameState, type GameState } from './ledger';
 import type { MonthGame } from './leaderboard';
 import { playedAt, type GameSummary } from './stats';
-import type { Game, GamePlayer, LedgerEntry, Settlement } from './types';
+import type {
+  Game,
+  GamePlayer,
+  GameRequest,
+  KnownPlayer,
+  LedgerEntry,
+  OpenGame,
+  Settlement,
+} from './types';
 
 export type GameBundle = {
   game: Game;
@@ -122,4 +130,43 @@ export async function loadMonthGames(
     }))
     .filter((g) => g.playedAt >= since)
     .sort((a, b) => b.playedAt - a.playedAt);
+}
+
+/** Everyone you've played with, and whether you're friends yet. */
+export async function loadKnownPlayers(supabase: SupabaseClient): Promise<KnownPlayer[]> {
+  const { data } = await supabase.rpc('people_i_have_played_with');
+  return (data ?? []) as KnownPlayer[];
+}
+
+/** Your friends' tables that are still running. */
+export async function loadFriendsOpenGames(supabase: SupabaseClient): Promise<OpenGame[]> {
+  const { data } = await supabase.rpc('friends_open_games');
+  return (data ?? []) as OpenGame[];
+}
+
+/**
+ * Invitations waiting on you, and — if you host a table — requests waiting on
+ * your answer. Both arrive as the same kind of row.
+ */
+export async function loadPendingRequests(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<Array<GameRequest & { game_name: string; other_name: string }>> {
+  const { data } = await supabase
+    .from('game_requests')
+    .select('*, games(name), profiles:user_id(display_name)')
+    .eq('status', 'pending');
+
+  const rows = (data ?? []) as unknown as Array<
+    GameRequest & { games: { name: string } | null; profiles: { display_name: string } | null }
+  >;
+
+  return rows
+    // An invite is yours to answer; a request is the host's.
+    .filter((r) => (r.kind === 'invite' ? r.user_id === userId : r.user_id !== userId))
+    .map((r) => ({
+      ...r,
+      game_name: r.games?.name ?? 'a table',
+      other_name: r.profiles?.display_name ?? 'Someone',
+    }));
 }

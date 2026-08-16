@@ -4,7 +4,7 @@ import { GameRoom } from '@/components/game-room';
 import { JoinPrompt } from '@/components/join-prompt';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
-import { findGameByCode, loadGame } from '@/lib/queries';
+import { findGameByCode, loadGame, loadKnownPlayers } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +37,8 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
     );
   }
 
+  const known = await loadKnownPlayers(supabase);
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('display_name')
@@ -47,6 +49,7 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
     <GameRoom
       userId={user.id}
       displayName={(profile?.display_name as string | undefined) ?? 'Player'}
+      friends={known.filter((k) => k.friendship_status === 'accepted')}
       initial={{
         game: bundle.game,
         players: bundle.players,

@@ -104,3 +104,37 @@ export function chipGranularityCents(chips: ChipDenomination[]): number {
     return a;
   });
 }
+
+export type FriendshipStatus = 'none' | 'pending' | 'accepted';
+
+/** Someone you've sat at a table with, and where you stand with them. */
+export type KnownPlayer = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  nights_together: number;
+  friendship_status: FriendshipStatus;
+  friendship_id: string | null;
+  /** True when they asked you, so you're the one who answers. */
+  they_asked: boolean;
+};
+
+/** A friend's table that's still running. */
+export type OpenGame = {
+  game_id: string;
+  name: string;
+  host_name: string;
+  seats_taken: number;
+  already_in: boolean;
+  pending_request: boolean;
+};
+
+export type GameRequest = {
+  id: string;
+  game_id: string;
+  user_id: string;
+  kind: 'invite' | 'request';
+  status: 'pending' | 'accepted' | 'declined';
+  created_by: string;
+  created_at: string;
+};

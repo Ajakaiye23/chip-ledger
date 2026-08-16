@@ -20,7 +20,8 @@ export function RankCard({ summaries }: { summaries: GameSummary[] }) {
         <div className="flex items-baseline justify-between gap-3">
           <p className="display text-2xl text-brass-400">{standing.rank.name}</p>
           <p className="plate">
-            {standing.points} {standing.points === 1 ? 'point' : 'points'}
+            {standing.points} {standing.points === 1 ? 'pt' : 'pts'} · {standing.nights}{' '}
+            {standing.nights === 1 ? 'night' : 'nights'}
           </p>
         </div>
 
@@ -34,9 +35,19 @@ export function RankCard({ summaries }: { summaries: GameSummary[] }) {
         <p className="mt-2 text-xs text-ink-500">
           {standing.next ? (
             <>
-              {standing.toNext} more {standing.toNext === 1 ? 'point' : 'points'} to{' '}
-              <span className="text-ink-300">{standing.next.name}</span>. A winning night is a
-              point, up $25 is two, up $100 is three.
+              <span className="text-ink-300">{standing.next.name}</span> needs{' '}
+              {[
+                standing.pointsToNext > 0
+                  ? `${standing.pointsToNext} more ${standing.pointsToNext === 1 ? 'point' : 'points'}`
+                  : null,
+                standing.nightsToNext > 0
+                  ? `${standing.nightsToNext} more ${standing.nightsToNext === 1 ? 'night' : 'nights'}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' and ')}
+              . Nights are scored on what you made against what you put in: doubling up is
+              three points, up 50% is two, any win is one — and losing takes points off.
             </>
           ) : (
             <>Top of the ladder. Nothing left to prove.</>
@@ -56,9 +67,14 @@ export function RankCard({ summaries }: { summaries: GameSummary[] }) {
           ))}
         </ol>
 
-        {standing.winningNights > 0 ? (
+        {standing.nights > 0 ? (
           <p className="mt-3 border-t border-white/10 pt-2 text-xs text-ink-500">
-            {standing.winningNights} winning {standing.winningNights === 1 ? 'night' : 'nights'}.
+            {standing.winningNights} winning of {standing.nights} · form{' '}
+            <span className={standing.formPerNight >= 0 ? 'text-emerald-400' : 'text-rouge-400'}>
+              {standing.formPerNight >= 0 ? '+' : ''}
+              {standing.formPerNight.toFixed(2)}
+            </span>{' '}
+            a night
           </p>
         ) : null}
       </div>

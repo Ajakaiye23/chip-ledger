@@ -127,3 +127,44 @@ export async function transferHost(gameId: string, newHostPlayerId: string) {
   });
   if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
 }
+
+// ------------------------------------------------------------------ friends --
+
+export async function sendFriendRequest(userId: string) {
+  const { error } = await createClient().rpc('send_friend_request', { p_user_id: userId });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
+
+export async function respondToFriendRequest(id: string, accept: boolean) {
+  const { error } = await createClient().rpc('respond_to_friend_request', {
+    p_id: id,
+    p_accept: accept,
+  });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
+
+export async function removeFriend(userId: string) {
+  const { error } = await createClient().rpc('remove_friend', { p_user_id: userId });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
+
+export async function inviteFriend(gameId: string, userId: string) {
+  const { error } = await createClient().rpc('invite_friend', {
+    p_game_id: gameId,
+    p_user_id: userId,
+  });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
+
+export async function requestToJoin(gameId: string) {
+  const { error } = await createClient().rpc('request_to_join', { p_game_id: gameId });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
+
+export async function respondToGameRequest(id: string, accept: boolean) {
+  const { error } = await createClient().rpc('respond_to_game_request', {
+    p_id: id,
+    p_accept: accept,
+  });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}
