@@ -99,9 +99,20 @@ real install prompt; iOS gets Share → Add to Home Screen instructions.
      ID and secret in. Add Supabase's callback URL
      (`https://<project-ref>.supabase.co/auth/v1/callback`) as an authorised
      redirect URI.
-   - **Apple**: needs a paid Apple Developer account ($99/yr) to create a
-     Services ID and key. If you don't have one, Google alone works fine — the
-     Apple button will just error until it's configured.
+   - **Apple** (optional): needs a paid Apple Developer account ($99/yr). Create
+     an App ID, a Services ID (that's the client ID), and a Sign in with Apple
+     key. Point the Services ID's return URL at Supabase's callback. Apple gives
+     you a private key rather than a secret, so generate the secret locally:
+
+     ```bash
+     npm run apple-secret -- --team TEAMID --key-id KEYID \
+       --services-id com.you.chipledger.web --p8 ./AuthKey_KEYID.p8
+     ```
+
+     Don't use the websites that offer to do this — the .p8 is the credential
+     that lets anyone sign people into your app. Apple caps the secret at six
+     months, so it needs regenerating twice a year or the button stops working.
+     Google alone works fine on iPhones if you'd rather skip all this.
 
 4. **Add redirect URLs.** Authentication → URL Configuration → Redirect URLs:
    add `http://localhost:3000/auth/callback` and your deployed
