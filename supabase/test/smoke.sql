@@ -260,6 +260,80 @@ begin
 end;
 $$;
 
+-- --------------------------------------------------------- handing it over --
+
+-- A player can't take the table for themselves.
+set test.uid = '22222222-2222-2222-2222-222222222222';
+do $$
+declare
+  denied boolean := false;
+begin
+  begin
+    perform public.transfer_host(
+      (select id from public.games),
+      (select id from public.game_players where user_id = auth.uid()));
+  exception when others then
+    denied := true;
+  end;
+  assert denied, 'a player must not be able to make themselves host';
+end;
+$$;
+
+set test.uid = '11111111-1111-1111-1111-111111111111';
+
+-- Nor can the host hand it to a guest, who has no account to host with.
+do $$
+declare
+  denied boolean := false;
+begin
+  begin
+    perform public.transfer_host(
+      (select id from public.games),
+      (select id from public.game_players where user_id is null limit 1));
+  exception when others then
+    denied := true;
+  end;
+  assert denied, 'a guest has no account and cannot be host';
+end;
+$$;
+
+-- The host hands over to Sam.
+select public.transfer_host(
+  :'game_id',
+  (select id from public.game_players where display_name = 'Sam')) as handed \gset
+
+do $$
+begin
+  assert (select host_id from public.games) = '22222222-2222-2222-2222-222222222222',
+    'Sam should now be the host';
+end;
+$$;
+
+-- Sam can now do host things...
+set test.uid = '22222222-2222-2222-2222-222222222222';
+update public.games set name = 'Sam''s table' where id = :'game_id';
+do $$
+begin
+  assert (select name from public.games) = 'Sam''s table', 'the new host can rename the table';
+end;
+$$;
+
+-- ...and Hannah can't any more.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+update public.games set name = 'Taking it back' where id = :'game_id';
+do $$
+begin
+  assert (select name from public.games) = 'Sam''s table',
+    'the old host should have lost their powers';
+end;
+$$;
+
+-- Hand it back so the settlement test runs as the original host.
+set test.uid = '22222222-2222-2222-2222-222222222222';
+select public.transfer_host(
+  :'game_id',
+  (select id from public.game_players where display_name = 'Hannah')) as handed_back \gset
+
 -- ------------------------------------------------------------- settlement --
 
 set test.uid = '11111111-1111-1111-1111-111111111111';

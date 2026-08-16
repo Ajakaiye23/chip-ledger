@@ -118,3 +118,12 @@ export async function saveProfileName(args: {
     .eq('id', args.userId);
   if (error) throw new Error(error.message);
 }
+
+/** Hand the table to another player. Only the current host may do this. */
+export async function transferHost(gameId: string, newHostPlayerId: string) {
+  const { error } = await createClient().rpc('transfer_host', {
+    p_game_id: gameId,
+    p_new_host_player_id: newHostPlayerId,
+  });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}

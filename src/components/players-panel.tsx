@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import type { GameData } from '@/hooks/use-game';
 import type { GameState, PlayerState } from '@/lib/ledger';
-import { addGuestPlayer, clearFinalCount, recordMoney, setFinalCount, setPlayerStatus } from '@/lib/actions';
+import {
+  addGuestPlayer,
+  clearFinalCount,
+  recordMoney,
+  setFinalCount,
+  setPlayerStatus,
+  transferHost,
+} from '@/lib/actions';
 import { blindsFor, type BlindAssignment } from '@/lib/blinds';
 import { formatMoney } from '@/lib/money';
 import { MAX_SEATS, type ChipCounts, type ChipDenomination, type GamePlayer } from '@/lib/types';
@@ -31,6 +38,8 @@ export function PlayersPanel({
 }) {
   const [acting, setActing] = useState<PlayerState | null>(null);
   const [counting, setCounting] = useState<PlayerState | null>(null);
+  const [handingOver, setHandingOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [money, setMoneySheet] = useState<{ player: GamePlayer; kind: 'buy_in' | 'cash_out' } | null>(null);
   const [addingGuest, setAddingGuest] = useState(false);
 
@@ -41,6 +50,10 @@ export function PlayersPanel({
   const seated = state.players.filter((p) => p.player.status !== 'left');
   const gone = state.players.filter((p) => p.player.status === 'left');
   const full = seated.length >= MAX_SEATS;
+  // Guests have no account to host with, and you can't hand the table to yourself.
+  const successors = seated.filter(
+    (p) => p.player.user_id != null && p.player.user_id !== userId,
+  );
 
   return (
     <div className="space-y-6">
@@ -107,6 +120,11 @@ export function PlayersPanel({
               variant="ghost"
               className="flex-1"
               onClick={async () => {
+                // A host walking out would take the settle button with them.
+                if (isHost && me.status !== 'left' && successors.length > 0) {
+                  setHandingOver(true);
+                  return;
+                }
                 await setPlayerStatus(me.id, me.status === 'left' ? 'active' : 'left');
                 onChange();
               }}
@@ -122,6 +140,21 @@ export function PlayersPanel({
         onClose={() => setActing(null)}
         canManage={acting != null && (isHost || acting.player.user_id === userId)}
         settled={settled}
+        isHostOfTable={acting?.player.user_id === data.game.host_id}
+        canMakeHost={
+          isHost && acting != null && acting.player.user_id != null &&
+          acting.player.user_id !== userId && acting.player.status !== 'left'
+        }
+        onMakeHost={async () => {
+          if (!acting) return;
+          try {
+            await transferHost(data.game.id, acting.player.id);
+            setActing(null);
+            onChange();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not hand over the table.');
+          }
+        }}
         onMoney={(kind) => {
           if (!acting) return;
           setMoneySheet({ player: acting.player, kind });
@@ -156,6 +189,29 @@ export function PlayersPanel({
         userId={userId}
         onDone={onChange}
       />
+
+      <HandOverSheet
+        open={handingOver}
+        onClose={() => setHandingOver(false)}
+        candidates={successors}
+        onPick={async (playerId, thenLeave) => {
+          try {
+            await transferHost(data.game.id, playerId);
+            if (thenLeave && me) await setPlayerStatus(me.id, 'left');
+            setHandingOver(false);
+            onChange();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not hand over the table.');
+          }
+        }}
+        onLeaveAnyway={async () => {
+          if (me) await setPlayerStatus(me.id, 'left');
+          setHandingOver(false);
+          onChange();
+        }}
+      />
+
+      {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
 
       <AddGuestSheet
         open={addingGuest}
@@ -260,6 +316,9 @@ function PlayerSheet({
   onMoney,
   onStatus,
   onCount,
+  isHostOfTable,
+  canMakeHost,
+  onMakeHost,
 }: {
   entry: PlayerState | null;
   onClose: () => void;
@@ -268,12 +327,16 @@ function PlayerSheet({
   onMoney: (kind: 'buy_in' | 'cash_out') => void;
   onStatus: (status: 'active' | 'left') => void;
   onCount: () => void;
+  isHostOfTable: boolean;
+  canMakeHost: boolean;
+  onMakeHost: () => void;
 }) {
   if (!entry) return null;
 
   return (
     <Sheet open onClose={onClose} title={entry.player.display_name}>
       <div className="space-y-5">
+        {isHostOfTable ? <p className="plate text-brass-400">Host of this table</p> : null}
         <dl className="grid grid-cols-3 gap-2 text-center">
           {[
             { label: 'Started with', value: formatMoney(entry.startedWithCents) },
@@ -313,6 +376,11 @@ function PlayerSheet({
             >
               {entry.player.status === 'left' ? 'Back at the table' : 'Mark away'}
             </Button>
+            {canMakeHost ? (
+              <Button variant="ghost" className="col-span-2" onClick={onMakeHost}>
+                Make {entry.player.display_name} the host
+              </Button>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-ink-500">
@@ -553,6 +621,70 @@ function FinalCountSheet({
             Clear the count
           </Button>
         ) : null}
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Shown when the host tries to leave. The host is the only one who can set chip
+ * values or lock the settlement, so walking out without passing it on leaves a
+ * table nobody can close — but it's still their call, hence the escape hatch.
+ */
+function HandOverSheet({
+  open,
+  onClose,
+  candidates,
+  onPick,
+  onLeaveAnyway,
+}: {
+  open: boolean;
+  onClose: () => void;
+  candidates: PlayerState[];
+  onPick: (playerId: string, thenLeave: boolean) => void;
+  onLeaveAnyway: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Who takes over the table?">
+      <div className="space-y-5">
+        <p className="text-sm text-ink-500">
+          You&apos;re the host, so you&apos;re the only one who can change the chip values or
+          settle the night. Pass it to someone who&apos;s staying.
+        </p>
+
+        <ul className="card">
+          {candidates.map((p) => (
+            <li key={p.player.id} className="ledger-row last:border-b-0">
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    onPick(p.player.id, true);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="pressable flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+              >
+                <span className="truncate">{p.player.display_name}</span>
+                <span aria-hidden className="text-ink-500">
+                  ›
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        <Button variant="ghost" className="w-full" disabled={busy} onClick={onLeaveAnyway}>
+          Leave without handing it over
+        </Button>
+        <p className="text-xs text-ink-500">
+          You can hand the table over at any time from a player&apos;s seat, and you keep your
+          chips and your history either way.
+        </p>
       </div>
     </Sheet>
   );

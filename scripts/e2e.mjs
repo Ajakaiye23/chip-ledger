@@ -220,6 +220,50 @@ for (const [name, viewport] of [
   await ctx.close();
 }
 
+// Handing the table over.
+{
+  const { ctx, page, errors } = await newPage(PHONE);
+  await page.goto(`${base}/preview`, { waitUntil: 'networkidle' });
+
+  // The host sees the option on another account-holding player's seat...
+  await page.getByRole('button', { name: /Sam/ }).first().click();
+  await page.waitForTimeout(250);
+  const offered = await page.getByRole('button', { name: /Make Sam K\. the host/ })
+    .isVisible().catch(() => false);
+  if (!offered) fail('hand over', 'host was not offered the hand-over on a player seat');
+  else ok();
+  await auditPage(page, 'hand over');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // ...but not on a guest, who has no account to host with.
+  await page.getByRole('button', { name: /Riley/ }).first().click();
+  await page.waitForTimeout(250);
+  const guestOffered = await page.getByRole('button', { name: /the host/ })
+    .isVisible().catch(() => false);
+  if (guestOffered) fail('hand over', 'a guest was offered the table');
+  else ok();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // Leaving as host asks who takes over rather than just walking out.
+  await page.getByRole('button', { name: 'Leave the table' }).click();
+  await page.waitForTimeout(250);
+  const asked = await page.getByRole('dialog', { name: /Who takes over/ })
+    .isVisible().catch(() => false);
+  if (!asked) fail('hand over', 'leaving as host did not ask who takes over');
+  else ok();
+  const escape = await page.getByRole('button', { name: /Leave without handing/ })
+    .isVisible().catch(() => false);
+  if (!escape) fail('hand over', 'no way to leave without handing over');
+  else ok();
+  await auditPage(page, 'hand over sheet');
+  await page.keyboard.press('Escape');
+
+  if (errors.length) fail('hand over', errors.join('; '));
+  await ctx.close();
+}
+
 // The hand panel: blinds, and the button moving.
 {
   const { ctx, page, errors } = await newPage(PHONE);

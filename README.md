@@ -30,6 +30,11 @@ friends to tell two Sams apart and no more of anyone's name than that needs.
 A game counts toward a window based on when it wrapped up, so one long night
 doesn't smear across two weeks.
 
+**Handing over.** The host can pass the table to any seated player with an
+account, from that player's seat — and leaving as host asks who takes over first,
+since the host is the only one who can settle the night. Guests can't be handed
+the table: there's no account behind them.
+
 **Tables.** A shared room with a join code, seating up to eight. Anyone with the
 code takes a seat; the host can also add people who don't have the app at all,
 and keeps the books for them. The eight-seat limit is enforced in the database,
@@ -218,7 +223,8 @@ scripts/make-icons.mjs draws the PWA icons (no image dependencies)
 
 - **Trust model.** This is a home game, so any player can record a buy-in or move
   the button. Chip values, the blinds, the table name and the settlement are the
-  host's alone. A final count can be recorded by the host or by that player for
+  host's alone, and the host can hand that role to any seated player with an
+  account. A final count can be recorded by the host or by that player for
   themselves, and nobody else. All of it is enforced by row-level security, not by
   the UI hiding buttons.
 - **Offline.** The service worker keeps the app shell, not the ledger. Money data
