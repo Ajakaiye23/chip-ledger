@@ -40,8 +40,8 @@ export function ChipValuesEditor({
     <div className="space-y-2">
       {chips.map((chip) => (
         <div key={chip.key} className="flex items-center gap-2.5">
-          <label className="relative shrink-0" title="Chip colour">
-            <ChipDot chip={chip} size={28} />
+          <label className="relative grid h-11 w-11 shrink-0 place-items-center" title="Chip colour">
+            <ChipDot chip={chip} size={32} />
             <input
               type="color"
               value={chip.color}
@@ -49,7 +49,7 @@ export function ChipValuesEditor({
               onChange={(e) =>
                 onChange(chips.map((c) => (c.key === chip.key ? { ...c, color: e.target.value } : c)))
               }
-              className="absolute inset-0 cursor-pointer opacity-0"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               aria-label={`${chip.label} colour`}
             />
           </label>

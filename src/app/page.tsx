@@ -87,7 +87,7 @@ export default async function LandingPage({
             <GuideLink />
             <Link
               href="/preview"
-              className="block text-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
+              className="flex min-h-11 items-center justify-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
             >
               Have a look around first
             </Link>

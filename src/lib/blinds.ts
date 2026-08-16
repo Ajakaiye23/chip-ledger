@@ -1,4 +1,4 @@
-import type { GamePlayer, Round } from './types';
+import type { GamePlayer } from './types';
 
 /**
  * Who deals, and who is forced to bet before the cards come out.
@@ -20,27 +20,6 @@ export function seatedPlayers(players: GamePlayer[]): GamePlayer[] {
   return players
     .filter((p) => p.status !== 'left')
     .sort((a, b) => a.joined_at.localeCompare(b.joined_at) || a.id.localeCompare(b.id));
-}
-
-/**
- * The button for the next round: one seat clockwise from wherever it was.
- * Players who left are skipped, and someone who joined mid-game slots into the
- * rotation at their seat rather than being dealt to immediately.
- */
-export function nextDealerId(players: GamePlayer[], rounds: Round[]): string | null {
-  const seats = seatedPlayers(players);
-  if (seats.length === 0) return null;
-
-  const previous = [...rounds]
-    .sort((a, b) => b.number - a.number)
-    .find((r) => r.dealer_player_id)?.dealer_player_id;
-
-  if (!previous) return seats[0].id;
-
-  const index = seats.findIndex((p) => p.id === previous);
-  // If the last dealer has since left, the button carries on from their seat.
-  if (index === -1) return seats[0].id;
-  return seats[(index + 1) % seats.length].id;
 }
 
 /**

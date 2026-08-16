@@ -16,30 +16,24 @@ export function Leaderboard({ rows, now }: { rows: LeaderboardRow[]; now?: numbe
       {rows.length === 0 ? (
         <Empty>No games this month yet. It resets on the 1st.</Empty>
       ) : (
-        <ol className="card divide-y divide-white/5">
+        <ol className="card">
           {rows.map((row, i) => (
             <li
               key={row.key}
-              className={`flex items-center gap-3 px-4 py-3 ${
-                row.isYou ? 'bg-brass-500/10 ring-1 ring-inset ring-brass-500/25' : ''
+              className={`ledger-row flex items-center gap-3 px-4 py-2.5 last:border-b-0 ${
+                row.isYou ? 'bg-brass-500/8' : ''
               }`}
             >
               <span
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-                  i === 0
-                    ? 'bg-gradient-to-b from-brass-400 to-brass-500 text-night-950'
-                    : i === 1
-                      ? 'bg-white/20 text-ink-100'
-                      : i === 2
-                        ? 'bg-rouge-500/70 text-white'
-                        : 'text-ink-500'
+                className={`figure w-5 shrink-0 text-right text-sm ${
+                  i === 0 ? 'text-brass-400' : 'text-ink-500'
                 }`}
               >
                 {i + 1}
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
+                <p className="truncate">
                   {row.name}
                   {row.isYou ? <span className="ml-2 text-xs text-brass-400">you</span> : null}
                 </p>
@@ -50,7 +44,7 @@ export function Leaderboard({ rows, now }: { rows: LeaderboardRow[]; now?: numbe
                 </p>
               </div>
 
-              <Money cents={row.netCents} sign className="shrink-0 font-semibold" />
+              <Money cents={row.netCents} sign className="figure shrink-0 text-base" />
             </li>
           ))}
         </ol>

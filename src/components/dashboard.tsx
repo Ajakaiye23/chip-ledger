@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { buildWindows, recentRounds, type GameSummary } from '@/lib/stats';
+import { buildWindows, type GameSummary } from '@/lib/stats';
 import { formatMoney, formatMoneyShort, parseMoney } from '@/lib/money';
 import {
   DEFAULT_BIG_BLIND_CENTS,
@@ -17,28 +17,35 @@ import type { LeaderboardRow } from '@/lib/leaderboard';
 import { ChipValuesEditor } from './chip-values-editor';
 import { GuideButton, GuideSheet, useGuide } from './guide';
 import { Leaderboard } from './leaderboard';
+import { RankCard } from './rank-card';
+import { NameSheet } from './name-sheet';
 import { InstallHint } from './install-prompt';
 import { Button, Empty, Field, Money, Sheet, inputClass } from './ui';
 
 export function Dashboard({
+  userId,
   displayName,
   avatarUrl,
   summaries,
   leaderboard,
+  needsName = false,
 }: {
+  userId: string;
   displayName: string;
   avatarUrl: string | null;
   summaries: GameSummary[];
   leaderboard: LeaderboardRow[];
+  /** True until someone has set a proper "first name, last initial". */
+  needsName?: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const [creating, setCreating] = useState(params.get('new') === '1');
   const [joining, setJoining] = useState(params.get('join') === '1');
   const guide = useGuide();
+  const [editingName, setEditingName] = useState(needsName);
 
   const windows = useMemo(() => buildWindows(summaries), [summaries]);
-  const rounds = useMemo(() => recentRounds(summaries, 12), [summaries]);
   const live = summaries.filter((s) => s.game.status === 'active');
   const finished = summaries.filter((s) => s.game.status !== 'active');
 
@@ -50,7 +57,7 @@ export function Dashboard({
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="flex items-center gap-3">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -66,6 +73,9 @@ export function Dashboard({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setEditingName(true)}>
+            Name
+          </Button>
           <GuideButton onClick={guide.show} />
           <Button variant="ghost" onClick={signOut}>
             Sign out
@@ -73,21 +83,28 @@ export function Dashboard({
         </div>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {windows.map((w) => (
-          <div key={w.key} className="card p-4">
-            <p className="plate">{w.label}</p>
-            <p className="display mt-2 text-2xl font-semibold tabular">{formatMoneyShort(w.volumeCents)}</p>
-            <p className="text-xs text-ink-500">played through</p>
-            <p className="mt-2 text-sm">
-              <Money cents={w.netCents} sign />
-            </p>
-            <p className="text-xs text-ink-500">
-              {w.games} {w.games === 1 ? 'game' : 'games'}
-              {w.liveGames > 0 ? <span className="text-brass-400"> · {w.liveGames} live</span> : null}
-            </p>
-          </div>
-        ))}
+      <section>
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h2 className="plate">Played through</h2>
+          <span className="plate">Net</span>
+        </div>
+        <ul className="card">
+          {windows.map((w) => (
+            <li key={w.key} className="ledger-row flex items-baseline gap-3 px-4 py-2.5 last:border-b-0">
+              <span className="flex-1 text-sm text-ink-300">
+                {w.label}
+                <span className="ml-2 text-xs text-ink-500">
+                  {w.games} {w.games === 1 ? 'game' : 'games'}
+                  {w.liveGames > 0 ? <span className="text-brass-400"> · {w.liveGames} live</span> : null}
+                </span>
+              </span>
+              <span className="figure w-20 text-right text-base">{formatMoneyShort(w.volumeCents)}</span>
+              <span className="figure w-24 text-right text-base">
+                <Money cents={w.netCents} sign />
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="flex flex-col gap-3 sm:flex-row">
@@ -99,6 +116,8 @@ export function Dashboard({
         </Button>
       </section>
 
+      <RankCard summaries={summaries} />
+
       <Leaderboard rows={leaderboard} />
 
       <section className="space-y-3">
@@ -106,7 +125,7 @@ export function Dashboard({
         {live.length === 0 ? (
           <Empty>No games running. Start a table and share the code.</Empty>
         ) : (
-          <ul className="space-y-2">
+          <ul className="card">
             {live.map((s) => (
               <GameRow key={s.game.id} summary={s} />
             ))}
@@ -119,7 +138,7 @@ export function Dashboard({
         {finished.length === 0 ? (
           <Empty>Settled games show up here.</Empty>
         ) : (
-          <ul className="space-y-2">
+          <ul className="card">
             {finished.slice(0, 20).map((s) => (
               <GameRow key={s.game.id} summary={s} />
             ))}
@@ -127,25 +146,17 @@ export function Dashboard({
         )}
       </section>
 
-      {rounds.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="plate text-ink-300">Recent rounds</h2>
-          <ul className="card divide-y divide-white/5">
-            {rounds.map((r, i) => (
-              <li key={`${r.gameCode}-${r.roundNumber}-${i}`} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="text-ink-300">
-                  {r.gameName} <span className="text-ink-500">· round {r.roundNumber}</span>
-                </span>
-                <Money cents={r.netCents} sign />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <InstallHint />
 
       <GuideSheet open={guide.open} onClose={guide.close} />
+
+      <NameSheet
+        open={editingName}
+        onClose={() => setEditingName(false)}
+        userId={userId}
+        displayName={displayName}
+      />
 
       <CreateGameSheet open={creating} onClose={() => setCreating(false)} displayName={displayName} />
       <JoinGameSheet open={joining} onClose={() => setJoining(false)} displayName={displayName} />
@@ -156,23 +167,25 @@ export function Dashboard({
 function GameRow({ summary }: { summary: GameSummary }) {
   const { game, state } = summary;
   return (
-    <li>
+    <li className="ledger-row last:border-b-0">
       <Link
         href={`/game/${game.code}`}
-        className="card pressable flex items-center justify-between gap-4 p-4 hover:bg-white/5"
+        className="pressable flex items-center justify-between gap-4 px-4 py-3"
       >
-        <div className="min-w-0">
-          <p className="display truncate text-lg font-medium">{game.name}</p>
-          <p className="text-xs text-ink-500">
+        <span className="min-w-0">
+          <span className="block truncate">
+            {game.name}
+            {game.status === 'active' ? (
+              <span className="ml-2 text-[11px] text-brass-400">live</span>
+            ) : null}
+          </span>
+          <span className="text-xs text-ink-500">
             <span className="font-mono tracking-widest">{game.code}</span> ·{' '}
-            {new Date(summary.playedAt).toLocaleDateString()} ·{' '}
-            {game.status === 'active' ? 'live' : 'settled'}
-          </p>
-        </div>
-        <div className="text-right">
-          <Money cents={state.netCents} sign className="font-semibold" />
-          <p className="text-xs text-ink-500">in {formatMoney(state.totalBuyInCents)}</p>
-        </div>
+            {new Date(summary.playedAt).toLocaleDateString()} · in{' '}
+            {formatMoney(state.startedWithCents)}
+          </span>
+        </span>
+        <Money cents={state.netCents} sign className="figure shrink-0 text-lg" />
       </Link>
     </li>
   );
@@ -265,11 +278,11 @@ function CreateGameSheet({
             </Field>
           </div>
           {!blindsOk ? (
-            <p className="text-xs text-red-400">
+            <p className="text-xs text-rouge-400">
               The big blind has to be at least the small blind.
             </p>
           ) : !blindsFitChips ? (
-            <p className="text-xs text-amber-300">
+            <p className="text-xs text-brass-400">
               These chips can only make multiples of {formatMoney(step)}, so one of those
               blinds can&apos;t be posted exactly.
             </p>
@@ -280,7 +293,7 @@ function CreateGameSheet({
           )}
         </div>
 
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
 
         <Button className="w-full" onClick={create} disabled={busy || !blindsOk}>
           {busy ? 'Dealing in…' : 'Create table'}
@@ -343,7 +356,7 @@ function JoinGameSheet({
           />
         </Field>
 
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
 
         <Button className="w-full" onClick={join} disabled={busy || code.trim().length < 4}>
           {busy ? 'Taking a seat…' : 'Sit down'}

@@ -42,7 +42,7 @@ export function SignIn({ next = '/dashboard' }: { next?: string }) {
         <AppleMark />
         {busy === 'apple' ? 'Opening Apple…' : 'Continue with Apple'}
       </Button>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
       <p className="text-center text-xs text-ink-500">
         Your account keeps your buy-ins and results across every table you sit at.
       </p>

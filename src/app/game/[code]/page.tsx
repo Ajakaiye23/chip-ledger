@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { GameRoom } from '@/components/game-room';
 import { JoinPrompt } from '@/components/join-prompt';
 import { createClient } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { findGameByCode, loadGame } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function GamePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  if (!isSupabaseConfigured) redirect('/');
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,9 +50,7 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
       initial={{
         game: bundle.game,
         players: bundle.players,
-        rounds: bundle.rounds,
         entries: bundle.entries,
-        stacks: bundle.stacks,
         settlement: bundle.settlement,
       }}
     />

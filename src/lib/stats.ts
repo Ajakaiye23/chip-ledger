@@ -27,9 +27,8 @@ const DAY = 24 * 60 * 60 * 1000;
  * closed round, or failing both the time it was created. That keeps one long
  * night from being smeared across two weeks.
  */
-export function playedAt(game: Game, lastRoundClosedAt: string | null): number {
-  const stamp = game.ended_at ?? lastRoundClosedAt ?? game.created_at;
-  return new Date(stamp).getTime();
+export function playedAt(game: Game): number {
+  return new Date(game.ended_at ?? game.created_at).getTime();
 }
 
 export function buildWindows(summaries: GameSummary[], now = Date.now()): StatWindow[] {
@@ -48,7 +47,7 @@ export function buildWindows(summaries: GameSummary[], now = Date.now()): StatWi
     return {
       key,
       label,
-      volumeCents: picked.reduce((sum, g) => sum + g.state.totalBuyInCents, 0),
+      volumeCents: picked.reduce((sum, g) => sum + g.state.startedWithCents, 0),
       netCents: picked.reduce((sum, g) => sum + g.state.netCents, 0),
       games: picked.length,
       liveGames: picked.filter((g) => g.game.status === 'active').length,
@@ -56,20 +55,3 @@ export function buildWindows(summaries: GameSummary[], now = Date.now()): StatWi
   });
 }
 
-/** Per-round history across every game, newest first — the "how am I running" feed. */
-export function recentRounds(summaries: GameSummary[], limit = 25) {
-  return summaries
-    .flatMap((s) =>
-      s.state.rounds
-        .filter((r) => r.recorded)
-        .map((r) => ({
-          gameName: s.game.name,
-          gameCode: s.game.code,
-          roundNumber: r.roundNumber,
-          netCents: r.netCents,
-          playedAt: s.playedAt,
-        })),
-    )
-    .sort((a, b) => b.playedAt - a.playedAt || b.roundNumber - a.roundNumber)
-    .slice(0, limit);
-}

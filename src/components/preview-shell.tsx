@@ -18,7 +18,9 @@ export function PreviewShell() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`rounded px-2 py-1 ${view === v ? 'bg-brass-500/25 font-medium' : 'underline'}`}
+              className={`inline-flex min-h-8 items-center rounded px-2 ${
+                view === v ? 'bg-brass-500/25 font-medium' : 'underline'
+              }`}
             >
               {v === 'game' ? 'The table' : 'Your stats'}
             </button>
@@ -29,14 +31,15 @@ export function PreviewShell() {
       {view === 'game' ? (
         <GameRoomView
           userId={PREVIEW_USER_ID}
-          displayName="Hannah"
+          displayName="Hannah B."
           data={sampleGame}
           syncing={false}
           onChange={() => {}}
         />
       ) : (
         <Dashboard
-          displayName="Hannah"
+          userId={PREVIEW_USER_ID}
+          displayName="Hannah B."
           avatarUrl={null}
           summaries={summaries}
           leaderboard={sampleLeaderboard()}

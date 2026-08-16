@@ -86,22 +86,33 @@ body {
 }
 
 /*
- * A lacquered black plaque with a brass edge. All static paint: two gradients,
- * a border and two shadows, rasterised once when the card first appears.
+ * Numerals set the way a ledger sets them: serif, tabular, and big enough that
+ * the money is the first thing you see on any screen.
+ */
+.figure {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/*
+ * One surface, not a stack of identical boxes.
+ *
+ * The app is a book of accounts, so entries sit as ruled lines inside a single
+ * panel — the divider between two players is a hairline, not a gap between two
+ * floating cards. This is the main reason the layout reads as a ledger instead
+ * of a settings screen.
  */
 @utility card {
-  border-radius: var(--radius-card);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-felt-800) 62%, transparent) 0%,
-      color-mix(in srgb, var(--color-night-900) 92%, transparent) 100%
-    );
-  border: 1px solid color-mix(in srgb, var(--color-brass-500) 22%, transparent);
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-brass-400) 14%, transparent) inset,
-    0 0 0 1px #00000059,
-    0 14px 30px -22px #000;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-night-900) 92%, transparent);
+  border: 1px solid #ffffff14;
+  border-top-color: color-mix(in srgb, var(--color-brass-500) 30%, transparent);
+}
+
+/* Ruled entries within a panel. */
+@utility ledger-row {
+  border-bottom: 1px solid #ffffff0f;
 }
 
 /* The brass rail around the felt — used for anything that leads. */
@@ -137,10 +148,10 @@ body {
 }
 
 @utility pressable {
-  transition: transform 120ms ease, background-color 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 .pressable:active {
-  transform: scale(0.97);
+  background-color: #ffffff14;
 }
 
 /*

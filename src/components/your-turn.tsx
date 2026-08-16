@@ -35,8 +35,11 @@ export function YourTurnBanner({
   useEffect(() => {
     if (!role || buzzedFor.current === role) return;
     buzzedFor.current = role;
-    // A short buzz if the phone does that; silently ignored where it doesn't.
-    navigator.vibrate?.(role === 'dealer' ? 60 : [60, 80, 60]);
+    // A short buzz if the phone does that. Browsers block (and noisily log) this
+    // before the user has interacted with the page, so only ask once they have.
+    if (navigator.userActivation?.hasBeenActive) {
+      navigator.vibrate?.(role === 'dealer' ? 60 : [60, 80, 60]);
+    }
   }, [role]);
 
   if (!role) return null;
@@ -54,12 +57,12 @@ export function YourTurnBanner({
     <div
       role="status"
       aria-live="polite"
-      className="card relative mb-4 flex items-center gap-3 overflow-hidden border-brass-500/50 bg-brass-500/10 p-4"
+      className="relative mb-5 flex items-center gap-3 overflow-hidden border-l-2 border-brass-500 bg-brass-500/10 px-4 py-3"
     >
       {/* Only this overlay animates, and only its opacity. */}
       <span
         aria-hidden
-        className="flash-ring pointer-events-none absolute inset-0 rounded-[var(--radius-card)] ring-2 ring-brass-400"
+        className="flash-ring pointer-events-none absolute inset-0 bg-brass-400/20"
       />
       <span
         aria-hidden
@@ -68,7 +71,7 @@ export function YourTurnBanner({
         {role === 'dealer' ? '\u2660' : '\u2666'}
       </span>
       <div className="relative">
-        <p className="display text-lg font-semibold text-brass-400">{copy.title}</p>
+        <p className="display text-lg text-brass-400">{copy.title}</p>
         <p className="text-sm text-ink-300">{copy.detail}</p>
       </div>
     </div>

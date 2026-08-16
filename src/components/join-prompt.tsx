@@ -46,7 +46,7 @@ export function JoinPrompt({ code }: { code: string }) {
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
         <Button className="w-full" onClick={join} disabled={busy}>
           {busy ? 'Sitting down…' : 'Sit down'}
         </Button>

@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import type { GameData } from '@/hooks/use-game';
 import type { GameState, PlayerState } from '@/lib/ledger';
-import { addGuestPlayer, recordMoney, setPlayerStatus } from '@/lib/actions';
+import { addGuestPlayer, clearFinalCount, recordMoney, setFinalCount, setPlayerStatus } from '@/lib/actions';
+import { blindsFor, type BlindAssignment } from '@/lib/blinds';
 import { formatMoney } from '@/lib/money';
 import type { ChipCounts, ChipDenomination, GamePlayer } from '@/lib/types';
 import { StackInput, type StackValue } from './stack-input';
 import { Button, ChipDot, Empty, Field, Money, Sheet, inputClass } from './ui';
-import { blindsFor, type BlindAssignment } from '@/lib/blinds';
+
+type Role = 'dealer' | 'small' | 'big' | null;
 
 export function PlayersPanel({
   data,
@@ -16,7 +18,6 @@ export function PlayersPanel({
   userId,
   displayName,
   isHost,
-  openRoundId,
   settled,
   onChange,
 }: {
@@ -25,76 +26,72 @@ export function PlayersPanel({
   userId: string;
   displayName: string;
   isHost: boolean;
-  openRoundId: string | null;
   settled: boolean;
   onChange: () => void;
 }) {
+  const [acting, setActing] = useState<PlayerState | null>(null);
+  const [counting, setCounting] = useState<PlayerState | null>(null);
   const [money, setMoneySheet] = useState<{ player: GamePlayer; kind: 'buy_in' | 'cash_out' } | null>(null);
   const [addingGuest, setAddingGuest] = useState(false);
 
   const me = data.players.find((p) => p.user_id === userId) ?? null;
-  const chipValues = currentChipValues(data);
-  const openRound = data.rounds.find((r) => r.status === 'open') ?? null;
-  const blinds = blindsFor(data.players, openRound?.dealer_player_id ?? null);
+  const chipValues = data.game.default_chip_values;
+  const blinds = blindsFor(data.players, data.game.dealer_player_id);
+
   const seated = state.players.filter((p) => p.player.status !== 'left');
   const gone = state.players.filter((p) => p.player.status === 'left');
 
   return (
-    <div className="space-y-4">
-      <ul className="space-y-2">
-        {seated.map((p) => (
-          <PlayerRow
-            key={p.player.id}
-            entry={p}
-            isMe={p.player.user_id === userId}
-            canManage={isHost || p.player.user_id === userId}
-            settled={settled}
-            chipValues={chipValues}
-            heldChips={heldChipsFor(data, p.player.id)}
-            role={roleOf(blinds, p.player.id)}
-            onMoney={(kind) => setMoneySheet({ player: p.player, kind })}
-            onStatus={async (status) => {
-              await setPlayerStatus(p.player.id, status);
-              onChange();
-            }}
-          />
-        ))}
-      </ul>
+    <div className="space-y-6">
+      <section>
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h2 className="plate">Seats</h2>
+          <span className="plate">Stack · net</span>
+        </div>
 
-      {gone.length > 0 ? (
-        <details className="card p-4">
-          <summary className="cursor-pointer text-sm text-ink-300">
-            Left the table ({gone.length})
-          </summary>
-          <ul className="mt-3 space-y-2">
-            {gone.map((p) => (
-              <PlayerRow
+        {seated.length === 0 ? (
+          <Empty>Nobody has sat down yet.</Empty>
+        ) : (
+          <ul className="card">
+            {seated.map((p) => (
+              <PlayerLine
                 key={p.player.id}
                 entry={p}
                 isMe={p.player.user_id === userId}
-                canManage={isHost || p.player.user_id === userId}
-                settled={settled}
+                role={roleOf(blinds, p.player.id)}
                 chipValues={chipValues}
                 heldChips={heldChipsFor(data, p.player.id)}
-                role={roleOf(blinds, p.player.id)}
-                onMoney={(kind) => setMoneySheet({ player: p.player, kind })}
-                onStatus={async (status) => {
-                  await setPlayerStatus(p.player.id, status);
-                  onChange();
-                }}
+                onOpen={() => setActing(p)}
               />
             ))}
           </ul>
-        </details>
-      ) : null}
+        )}
+      </section>
 
-      {state.players.length === 0 ? <Empty>Nobody has sat down yet.</Empty> : null}
+      {gone.length > 0 ? (
+        <section>
+          <h2 className="plate mb-1.5">Away from the table</h2>
+          <ul className="card">
+            {gone.map((p) => (
+              <PlayerLine
+                key={p.player.id}
+                entry={p}
+                isMe={p.player.user_id === userId}
+                role={null}
+                chipValues={chipValues}
+                heldChips={heldChipsFor(data, p.player.id)}
+                onOpen={() => setActing(p)}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!settled ? (
         <div className="flex flex-col gap-2 sm:flex-row">
           {isHost ? (
             <Button variant="ghost" className="flex-1" onClick={() => setAddingGuest(true)}>
-              Add someone without an account
+              Add a player without the app
             </Button>
           ) : null}
           {me ? (
@@ -112,10 +109,34 @@ export function PlayersPanel({
         </div>
       ) : null}
 
-      <p className="text-xs text-ink-500">
-        Leaving keeps your chips and your history — walk away, come back three rounds later,
-        and the ledger picks up exactly where you left off.
-      </p>
+      <PlayerSheet
+        entry={acting}
+        onClose={() => setActing(null)}
+        canManage={acting != null && (isHost || acting.player.user_id === userId)}
+        settled={settled}
+        onMoney={(kind) => {
+          if (!acting) return;
+          setMoneySheet({ player: acting.player, kind });
+          setActing(null);
+        }}
+        onStatus={async (status) => {
+          if (!acting) return;
+          await setPlayerStatus(acting.player.id, status);
+          setActing(null);
+          onChange();
+        }}
+        onCount={() => {
+          setCounting(acting);
+          setActing(null);
+        }}
+      />
+
+      <FinalCountSheet
+        entry={counting}
+        chipValues={chipValues}
+        onClose={() => setCounting(null)}
+        onDone={onChange}
+      />
 
       <MoneySheet
         open={money !== null}
@@ -124,7 +145,6 @@ export function PlayersPanel({
         kind={money?.kind ?? 'buy_in'}
         chipValues={chipValues}
         gameId={data.game.id}
-        roundId={openRoundId}
         userId={userId}
         onDone={onChange}
       />
@@ -140,100 +160,161 @@ export function PlayersPanel({
   );
 }
 
-function PlayerRow({
+/** One ruled line in the book: who, what they're holding, where they stand. */
+function PlayerLine({
   entry,
   isMe,
-  canManage,
-  settled,
+  role,
   chipValues,
   heldChips,
-  role,
-  onMoney,
-  onStatus,
+  onOpen,
 }: {
   entry: PlayerState;
   isMe: boolean;
-  canManage: boolean;
-  settled: boolean;
+  role: Role;
   chipValues: ChipDenomination[];
-  /** Chip counts from this player's last recorded stack, if anyone counted them. */
   heldChips: ChipCounts | null;
-  role: 'dealer' | 'small' | 'big' | null;
-  onMoney: (kind: 'buy_in' | 'cash_out') => void;
-  onStatus: (status: 'active' | 'away' | 'left') => void;
+  onOpen: () => void;
 }) {
   const { player } = entry;
-  const lastRound = entry.rounds.filter((r) => r.recorded).at(-1);
+  const held = heldChips ? chipValues.filter((c) => heldChips[c.key]) : [];
 
   return (
-    <li className="card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 truncate font-medium">
-            {player.display_name}
-            {isMe ? <span className="text-xs text-brass-400">you</span> : null}
-            {player.user_id === null ? (
-              <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-ink-500">guest</span>
-            ) : null}
-            {player.status === 'left' ? (
-              <span className="text-xs text-ink-500">away</span>
-            ) : null}
+    <li className="ledger-row last:border-b-0">
+      <button
+        onClick={onOpen}
+        className="pressable flex w-full items-center gap-3 px-4 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-2">
+            <span className="truncate">{player.display_name}</span>
+            {isMe ? <span className="text-[11px] text-brass-400">you</span> : null}
             {role ? (
-              <span className="rounded bg-brass-500/20 px-1.5 py-0.5 text-[10px] font-medium text-brass-400">
-                {role === 'dealer' ? 'D' : role === 'small' ? 'SB' : 'BB'}
+              <span
+                className={`text-[11px] tracking-wider ${
+                  role === 'dealer' ? 'text-ink-300' : 'text-rouge-400'
+                }`}
+              >
+                {role === 'dealer' ? 'DEALER' : role === 'small' ? 'SB' : 'BB'}
               </span>
             ) : null}
-          </p>
-          <p className="mt-0.5 text-xs text-ink-500">
-            bought in {formatMoney(entry.totalBuyInCents)}
-            {entry.totalCashOutCents > 0 ? ` · took ${formatMoney(entry.totalCashOutCents)} off` : ''}
-            {lastRound && lastRound.netCents !== 0
-              ? ` · last round ${lastRound.netCents > 0 ? '+' : ''}${formatMoney(lastRound.netCents)}`
-              : ''}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-semibold tabular">{formatMoney(entry.currentStackCents)}</p>
-          <p className="text-xs">
-            <Money cents={entry.netCents} sign />
-          </p>
-        </div>
-      </div>
+            {player.user_id === null ? (
+              <span className="text-[11px] text-ink-500">guest</span>
+            ) : null}
+          </span>
 
-      {heldChips ? (
-        <ul className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
-          {chipValues
-            .filter((c) => heldChips[c.key])
-            .map((c) => (
-              <li key={c.key} className="inline-flex items-center gap-1.5">
-                <ChipDot chip={c} size={13} />
-                <span className="tabular text-ink-300">{heldChips[c.key]}</span>
-                {c.label}
-              </li>
-            ))}
-        </ul>
-      ) : null}
+          <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-ink-500">
+            {held.length > 0 ? (
+              held.map((c) => (
+                <span key={c.key} className="inline-flex items-center gap-1">
+                  <ChipDot chip={c} size={11} />
+                  <span className="tabular text-ink-300">{heldChips?.[c.key]}</span>
+                </span>
+              ))
+            ) : (
+              <span>{entry.counted ? `in ${formatMoney(entry.startedWithCents)}` : 'not counted yet'}</span>
+            )}
+          </span>
+        </span>
 
-      {canManage && !settled ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" onClick={() => onMoney('buy_in')}>
-            Buy in
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => onMoney('cash_out')}>
-            Cash out
-          </Button>
-          {player.status === 'left' ? (
-            <Button size="sm" variant="ghost" onClick={() => onStatus('active')}>
-              Back in
-            </Button>
+        <span className="shrink-0 text-right">
+          {entry.counted ? (
+            <>
+              <span className="figure block text-lg">
+                {formatMoney((entry.endedWithCents ?? 0) + entry.cashedOutCents)}
+              </span>
+              <Money cents={entry.netCents} sign className="block text-[11px]" />
+            </>
           ) : (
-            <Button size="sm" variant="ghost" onClick={() => onStatus('left')}>
-              Mark away
-            </Button>
+            <>
+              <span className="figure block text-lg text-ink-300">
+                {formatMoney(entry.startedWithCents)}
+              </span>
+              <span className="block text-[11px] text-ink-500">in</span>
+            </>
           )}
-        </div>
-      ) : null}
+        </span>
+
+        <span aria-hidden className="shrink-0 text-ink-500">
+          ›
+        </span>
+      </button>
     </li>
+  );
+}
+
+/** Tapping a seat opens their page in the book, with the actions on it. */
+function PlayerSheet({
+  entry,
+  onClose,
+  canManage,
+  settled,
+  onMoney,
+  onStatus,
+  onCount,
+}: {
+  entry: PlayerState | null;
+  onClose: () => void;
+  canManage: boolean;
+  settled: boolean;
+  onMoney: (kind: 'buy_in' | 'cash_out') => void;
+  onStatus: (status: 'active' | 'left') => void;
+  onCount: () => void;
+}) {
+  if (!entry) return null;
+
+  return (
+    <Sheet open onClose={onClose} title={entry.player.display_name}>
+      <div className="space-y-5">
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: 'Started with', value: formatMoney(entry.startedWithCents) },
+            {
+              label: 'Ended with',
+              value: entry.counted
+                ? formatMoney((entry.endedWithCents ?? 0) + entry.cashedOutCents)
+                : '—',
+            },
+            { label: 'Net', value: null },
+          ].map((cell) => (
+            <div key={cell.label} className="border border-white/10 px-2 py-3">
+              <dt className="plate">{cell.label}</dt>
+              <dd className="figure mt-1 text-lg">
+                {cell.value ?? <Money cents={entry.netCents} sign />}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+
+        {canManage && !settled ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="col-span-2" onClick={onCount}>
+              {entry.counted ? 'Change their final count' : 'Count them up'}
+            </Button>
+            <Button variant="ghost" onClick={() => onMoney('buy_in')}>
+              Buy in
+            </Button>
+            <Button variant="ghost" onClick={() => onMoney('cash_out')}>
+              Cash out
+            </Button>
+            <Button
+              variant="ghost"
+              className="col-span-2"
+              onClick={() => onStatus(entry.player.status === 'left' ? 'active' : 'left')}
+            >
+              {entry.player.status === 'left' ? 'Back at the table' : 'Mark away'}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-ink-500">
+            {settled
+              ? 'This game is settled.'
+              : 'Only this player or the host can change their money.'}
+          </p>
+        )}
+      </div>
+    </Sheet>
   );
 }
 
@@ -244,7 +325,6 @@ function MoneySheet({
   kind,
   chipValues,
   gameId,
-  roundId,
   userId,
   onDone,
 }: {
@@ -254,7 +334,6 @@ function MoneySheet({
   kind: 'buy_in' | 'cash_out';
   chipValues: ChipDenomination[];
   gameId: string;
-  roundId: string | null;
   userId: string;
   onDone: () => void;
 }) {
@@ -270,7 +349,6 @@ function MoneySheet({
       await recordMoney({
         gameId,
         playerId: player.id,
-        roundId,
         kind,
         amountCents: value.cents,
         chips: value.chips,
@@ -290,7 +368,7 @@ function MoneySheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={kind === 'buy_in' ? `Buy in — ${player?.display_name ?? ''}` : `Cash out — ${player?.display_name ?? ''}`}
+      title={`${kind === 'buy_in' ? 'Buy in' : 'Cash out'} — ${player?.display_name ?? ''}`}
     >
       <div className="space-y-5">
         <p className="text-sm text-ink-500">
@@ -299,7 +377,7 @@ function MoneySheet({
             : 'Chips off the table and money back in a pocket. This is not a win or a loss.'}
         </p>
         <StackInput chips={chipValues} value={value} onChange={setValue} autoFocus />
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
         <Button className="w-full" onClick={submit} disabled={busy || value.cents <= 0}>
           {busy
             ? 'Saving…'
@@ -307,9 +385,7 @@ function MoneySheet({
               ? kind === 'buy_in'
                 ? 'Buy in'
                 : 'Cash out'
-              : kind === 'buy_in'
-                ? `Buy in for ${formatMoney(value.cents)}`
-                : `Cash out ${formatMoney(value.cents)}`}
+              : `${kind === 'buy_in' ? 'Buy in for' : 'Cash out'} ${formatMoney(value.cents)}`}
         </Button>
       </div>
     </Sheet>
@@ -331,6 +407,7 @@ function AddGuestSheet({
 }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <Sheet open={open} onClose={onClose} title="Add a player">
@@ -347,16 +424,20 @@ function AddGuestSheet({
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
         <Button
           className="w-full"
           disabled={busy || name.trim().length === 0}
           onClick={async () => {
             setBusy(true);
+            setError(null);
             try {
               await addGuestPlayer(gameId, name.trim());
               setName('');
               onDone();
               onClose();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Could not add them.');
             } finally {
               setBusy(false);
             }
@@ -369,28 +450,102 @@ function AddGuestSheet({
   );
 }
 
-/** The open round's prices if there is one, otherwise the table defaults. */
-export function currentChipValues(data: GameData): ChipDenomination[] {
-  const open = data.rounds.find((r) => r.status === 'open');
-  const fromRound = open?.chip_values;
-  if (fromRound && fromRound.length > 0) return fromRound;
-  const latest = [...data.rounds].reverse().find((r) => r.chip_values?.length);
-  return latest?.chip_values ?? data.game.default_chip_values;
-}
-
-function roleOf(blinds: BlindAssignment, playerId: string): 'dealer' | 'small' | 'big' | null {
+function roleOf(blinds: BlindAssignment, playerId: string): Role {
   if (blinds.smallBlind?.id === playerId) return 'small';
   if (blinds.bigBlind?.id === playerId) return 'big';
   if (blinds.dealer?.id === playerId) return 'dealer';
   return null;
 }
 
-/** The chips someone actually has in front of them, as last counted. */
+/** The chips someone was counted with, if whoever counted used chip counts. */
 function heldChipsFor(data: GameData, playerId: string): ChipCounts | null {
-  const order = new Map(data.rounds.map((r) => [r.id, r.number]));
-  const latest = data.stacks
-    .filter((s) => s.player_id === playerId && s.chips)
-    .sort((a, b) => (order.get(a.round_id) ?? 0) - (order.get(b.round_id) ?? 0))
-    .at(-1);
-  return latest?.chips ?? null;
+  return data.players.find((p) => p.id === playerId)?.final_chips ?? null;
+}
+
+
+/** The one count that decides a player's night. */
+function FinalCountSheet({
+  entry,
+  chipValues,
+  onClose,
+  onDone,
+}: {
+  entry: PlayerState | null;
+  chipValues: ChipDenomination[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [value, setValue] = useState<StackValue>({ cents: 0, chips: null });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!entry) return null;
+
+  async function save() {
+    if (!entry) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await setFinalCount(entry.player.id, value.cents, value.chips);
+      setValue({ cents: 0, chips: null });
+      onDone();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that count.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet open onClose={onClose} title={`Count up — ${entry.player.display_name}`}>
+      <div className="space-y-5">
+        <p className="text-sm text-ink-500">
+          Everything in front of them right now. They started with{' '}
+          {formatMoney(entry.startedWithCents)}
+          {entry.cashedOutCents > 0
+            ? ` and took ${formatMoney(entry.cashedOutCents)} off the table earlier`
+            : ''}
+          .
+        </p>
+
+        <StackInput chips={chipValues} value={value} onChange={setValue} defaultMode="chips" />
+
+        <p className="flex items-baseline justify-between border-t border-white/10 pt-3">
+          <span className="plate">That makes their night</span>
+          <Money
+            cents={value.cents + entry.cashedOutCents - entry.startedWithCents}
+            sign
+            className="figure text-xl"
+          />
+        </p>
+
+        {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
+
+        <Button className="w-full" onClick={save} disabled={busy}>
+          {busy ? 'Saving…' : 'Save their count'}
+        </Button>
+
+        {entry.counted ? (
+          <Button
+            variant="ghost"
+            className="w-full"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await clearFinalCount(entry.player.id);
+                onDone();
+                onClose();
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Clear the count
+          </Button>
+        ) : null}
+      </div>
+    </Sheet>
+  );
 }

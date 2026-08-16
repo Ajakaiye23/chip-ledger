@@ -1,12 +1,15 @@
 import { redirect } from 'next/navigation';
 import { Dashboard } from '@/components/dashboard';
 import { createClient } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { loadAccountHistory, loadMonthGames } from '@/lib/queries';
 import { monthlyLeaderboard, startOfMonth } from '@/lib/leaderboard';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
+  if (!isSupabaseConfigured) redirect('/');
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -27,6 +30,8 @@ export default async function DashboardPage() {
 
   return (
     <Dashboard
+      userId={user.id}
+      needsName={!profile?.last_initial}
       displayName={displayName}
       avatarUrl={(profile?.avatar_url as string | null) ?? null}
       summaries={summaries}

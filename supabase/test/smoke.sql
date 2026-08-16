@@ -78,50 +78,71 @@ begin
 end;
 $$;
 
--- ------------------------------------------------------------ round one --
+-- ------------------------------------------------------- money and counting --
 
--- Only the host can start a round.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+insert into public.ledger_entries (game_id, player_id, kind, amount_cents)
+select :'game_id', id, 'buy_in', 4000 from public.game_players;
+
+do $$
+begin
+  assert (select sum(amount_cents) from public.ledger_entries) = 8000, '$80 on the table';
+end;
+$$;
+
+-- The button moves a seat at a time, and any player may move it.
 set test.uid = '22222222-2222-2222-2222-222222222222';
+select public.next_hand(:'game_id') as h1 \gset
+select public.next_hand(:'game_id') as h2 \gset
+
+do $$
+begin
+  assert (select hand_number from public.games) = 2, 'two hands dealt';
+  assert (select dealer_player_id from public.games) =
+         (select id from public.game_players where display_name = 'Sam'),
+    'the button should have moved to the second seat';
+end;
+$$;
+
+-- A player may record their own final count.
+select public.set_final_count(
+  (select id from public.game_players where user_id = auth.uid()), 2500, null);
+
+do $$
+begin
+  assert (select final_stack_cents from public.game_players where display_name = 'Sam') = 2500,
+    'Sam should be counted at $25';
+end;
+$$;
+
+-- But not someone else's.
 do $$
 declare
   denied boolean := false;
 begin
   begin
-    insert into public.rounds (game_id, number, chip_values)
-    values ((select id from public.games limit 1), 1, '[]'::jsonb);
-  exception when insufficient_privilege then
+    perform public.set_final_count(
+      (select id from public.game_players where display_name = 'Hannah'), 999999, null);
+  exception when others then
     denied := true;
   end;
-  assert denied, 'a non-host should not be able to open a round';
+  assert denied, 'a player must not be able to count somebody else up';
 end;
 $$;
 
+-- The host can count anyone.
 set test.uid = '11111111-1111-1111-1111-111111111111';
-insert into public.rounds (game_id, number, chip_values)
-values (:'game_id', 1, '[{"key":"blue","label":"Blue","color":"#2563eb","valueCents":500}]'::jsonb);
-
-select id as round_id from public.rounds where game_id = :'game_id' and number = 1 \gset
-
--- Both players buy in for $20. Either player may record money.
-insert into public.ledger_entries (game_id, player_id, round_id, kind, amount_cents)
-select :'game_id', id, :'round_id', 'buy_in', 2000 from public.game_players;
-
-set test.uid = '22222222-2222-2222-2222-222222222222';
-insert into public.round_stacks (round_id, player_id, stack_cents)
-select :'round_id', id, case when display_name = 'Sam' then 1000 else 3000 end
-from public.game_players;
-
-set test.uid = '11111111-1111-1111-1111-111111111111';
-update public.rounds set status = 'closed', closed_at = now() where id = :'round_id';
+select public.set_final_count(
+  (select id from public.game_players where display_name = 'Hannah'), 5500, null);
 
 do $$
 begin
-  assert (select sum(amount_cents) from public.ledger_entries) = 4000, '$40 on the table';
-  assert (select sum(stack_cents) from public.round_stacks) = 4000, 'chips are conserved';
+  assert (select sum(final_stack_cents) from public.game_players) = 8000,
+    'chips counted off the table should match the money put on it';
 end;
 $$;
 
--- -------------------------------------------------- Sam leaves, then returns --
+-- ------------------------------------------------- Sam leaves, then returns --
 
 set test.uid = '22222222-2222-2222-2222-222222222222';
 update public.game_players set status = 'left', left_at = now() where user_id = auth.uid();
@@ -132,33 +153,8 @@ begin
   assert (select status from public.game_players
           where user_id = '22222222-2222-2222-2222-222222222222') = 'active',
     'rejoining should put Sam back in play';
-  assert (select count(*) from public.round_stacks) = 2,
-    'leaving must not touch recorded history';
-end;
-$$;
-
--- --------------------------------------------------- chip values per round --
-
-set test.uid = '11111111-1111-1111-1111-111111111111';
-insert into public.rounds (game_id, number, chip_values)
-values (:'game_id', 2, '[{"key":"blue","label":"Blue","color":"#2563eb","valueCents":1000}]'::jsonb);
-
-do $$
-begin
-  assert (select (chip_values->0->>'valueCents')::int from public.rounds where number = 1) = 500,
-    'round one keeps the price it was scored at';
-  assert (select (chip_values->0->>'valueCents')::int from public.rounds where number = 2) = 1000,
-    'round two can re-price the same colour';
-end;
-$$;
-
--- Non-host cannot re-price a round.
-set test.uid = '22222222-2222-2222-2222-222222222222';
-update public.rounds set chip_values = '[]'::jsonb where number = 2;
-do $$
-begin
-  assert (select jsonb_array_length(chip_values) from public.rounds where number = 2) = 1,
-    'RLS should have silently filtered out a non-host re-pricing';
+  assert (select final_stack_cents from public.game_players where display_name = 'Sam') = 2500,
+    'leaving must not touch a recorded count';
 end;
 $$;
 

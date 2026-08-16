@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { loadGame } from '@/lib/queries';
-import type { Game, GamePlayer, LedgerEntry, Round, RoundStack, Settlement } from '@/lib/types';
+import type { Game, GamePlayer, LedgerEntry, Settlement } from '@/lib/types';
 
 export type GameData = {
   game: Game;
   players: GamePlayer[];
-  rounds: Round[];
   entries: LedgerEntry[];
-  stacks: RoundStack[];
   settlement: Settlement | null;
 };
 
@@ -32,9 +30,7 @@ export function useGame(initial: GameData) {
         setData({
           game: bundle.game,
           players: bundle.players,
-          rounds: bundle.rounds,
           entries: bundle.entries,
-          stacks: bundle.stacks,
           settlement: bundle.settlement,
         });
       }
@@ -49,11 +45,8 @@ export function useGame(initial: GameData) {
     const channel = supabase
       .channel(`game:${initial.game.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: gameFilter }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: gameFilter }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_entries', filter: gameFilter }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements', filter: gameFilter }, refresh)
-      // round_stacks has no game_id, so it's filtered on the client side by refetch.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'round_stacks' }, refresh)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${initial.game.id}` }, refresh)
       .subscribe();
 

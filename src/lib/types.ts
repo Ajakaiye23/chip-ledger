@@ -11,7 +11,6 @@ export type ChipDenomination = {
 export type ChipCounts = Record<string, number>;
 
 export type GameStatus = 'active' | 'settled';
-export type RoundStatus = 'open' | 'closed';
 export type PlayerStatus = 'active' | 'away' | 'left';
 export type LedgerKind = 'buy_in' | 'cash_out' | 'adjustment';
 
@@ -24,6 +23,9 @@ export type Game = {
   default_chip_values: ChipDenomination[];
   small_blind_cents: number;
   big_blind_cents: number;
+  /** Whose deal it is. Rotates with the hand counter; nothing to do with money. */
+  dealer_player_id: string | null;
+  hand_number: number;
   created_at: string;
   ended_at: string | null;
 };
@@ -36,38 +38,20 @@ export type GamePlayer = {
   status: PlayerStatus;
   joined_at: string;
   left_at: string | null;
-};
-
-export type Round = {
-  id: string;
-  game_id: string;
-  number: number;
-  status: RoundStatus;
-  chip_values: ChipDenomination[];
-  /** Who deals this round; the button moves one seat each round. */
-  dealer_player_id: string | null;
-  started_at: string;
-  closed_at: string | null;
+  /** What they had in front of them at the end. Null until they're counted up. */
+  final_stack_cents: number | null;
+  final_chips: ChipCounts | null;
 };
 
 export type LedgerEntry = {
   id: string;
   game_id: string;
   player_id: string;
-  round_id: string | null;
   kind: LedgerKind;
   amount_cents: number;
   chips: ChipCounts | null;
   note: string | null;
   created_at: string;
-};
-
-export type RoundStack = {
-  id: string;
-  round_id: string;
-  player_id: string;
-  chips: ChipCounts | null;
-  stack_cents: number;
 };
 
 export type Settlement = {

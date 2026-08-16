@@ -115,7 +115,7 @@ export function StackInput({
                 ))}
             </p>
           ) : made ? (
-            <p className="text-xs text-amber-300">
+            <p className="text-xs text-brass-400">
               These chips can&apos;t make {formatMoney(value.cents)} exactly — the closest is{' '}
               <button
                 type="button"

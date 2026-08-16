@@ -13,7 +13,7 @@ export function GuideLink() {
     <>
       <button
         onClick={guide.show}
-        className="block w-full text-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
+        className="flex min-h-11 w-full items-center justify-center text-sm text-ink-500 underline underline-offset-4 hover:text-ink-300"
       >
         How this works
       </button>

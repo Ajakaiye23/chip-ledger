@@ -8,7 +8,6 @@ import type { ChipCounts, ChipDenomination, LedgerKind, Payment, PlayerStatus } 
 export async function recordMoney(args: {
   gameId: string;
   playerId: string;
-  roundId: string | null;
   kind: LedgerKind;
   amountCents: number;
   chips?: ChipCounts | null;
@@ -18,7 +17,6 @@ export async function recordMoney(args: {
   const { error } = await createClient().from('ledger_entries').insert({
     game_id: args.gameId,
     player_id: args.playerId,
-    round_id: args.roundId,
     kind: args.kind,
     amount_cents: args.amountCents,
     chips: args.chips ?? null,
@@ -28,53 +26,27 @@ export async function recordMoney(args: {
   if (error) throw new Error(error.message);
 }
 
-export async function startRound(
-  gameId: string,
-  number: number,
-  chipValues: ChipDenomination[],
-  dealerPlayerId: string | null,
-) {
-  const { error } = await createClient().from('rounds').insert({
-    game_id: gameId,
-    number,
-    chip_values: chipValues,
-    dealer_player_id: dealerPlayerId,
-    status: 'open',
+/** What a player had in front of them at the end. The number that decides the night. */
+export async function setFinalCount(playerId: string, stackCents: number, chips: ChipCounts | null) {
+  const { error } = await createClient().rpc('set_final_count', {
+    p_player_id: playerId,
+    p_stack_cents: stackCents,
+    p_chips: chips,
   });
   if (error) throw new Error(error.message);
 }
 
-
-export async function setRoundChipValues(roundId: string, chipValues: ChipDenomination[]) {
-  const { error } = await createClient().from('rounds').update({ chip_values: chipValues }).eq('id', roundId);
+export async function clearFinalCount(playerId: string) {
+  const { error } = await createClient()
+    .from('game_players')
+    .update({ final_stack_cents: null, final_chips: null })
+    .eq('id', playerId);
   if (error) throw new Error(error.message);
 }
 
-export async function closeRound(args: {
-  roundId: string;
-  userId: string;
-  stacks: Array<{ playerId: string; stackCents: number; chips: ChipCounts | null }>;
-}) {
-  const supabase = createClient();
-  if (args.stacks.length > 0) {
-    const { error } = await supabase.from('round_stacks').upsert(
-      args.stacks.map((s) => ({
-        round_id: args.roundId,
-        player_id: s.playerId,
-        stack_cents: s.stackCents,
-        chips: s.chips,
-        recorded_by: args.userId,
-        recorded_at: new Date().toISOString(),
-      })),
-      { onConflict: 'round_id,player_id' },
-    );
-    if (error) throw new Error(error.message);
-  }
-
-  const { error } = await supabase
-    .from('rounds')
-    .update({ status: 'closed', closed_at: new Date().toISOString() })
-    .eq('id', args.roundId);
+/** Move the button one seat. Any player can do it; no money is involved. */
+export async function nextHand(gameId: string) {
+  const { error } = await createClient().rpc('next_hand', { p_game_id: gameId });
   if (error) throw new Error(error.message);
 }
 
@@ -93,7 +65,7 @@ export async function setPlayerStatus(playerId: string, status: PlayerStatus) {
   if (error) throw new Error(error.message);
 }
 
-export async function setDefaultChipValues(gameId: string, chipValues: ChipDenomination[]) {
+export async function setChipValues(gameId: string, chipValues: ChipDenomination[]) {
   const { error } = await createClient()
     .from('games')
     .update({ default_chip_values: chipValues })
@@ -105,7 +77,7 @@ export async function setDefaultChipValues(gameId: string, chipValues: ChipDenom
 export async function finishGame(args: {
   gameId: string;
   payments: Payment[];
-  totals: Array<{ playerId: string; netCents: number; buyInCents: number }>;
+  totals: Array<{ playerId: string; netCents: number; startedWithCents: number }>;
 }) {
   const supabase = createClient();
   const { error: settleError } = await supabase.from('settlements').upsert(
@@ -126,5 +98,23 @@ export async function reopenGame(gameId: string) {
     .from('games')
     .update({ status: 'active', ended_at: null })
     .eq('id', gameId);
+  if (error) throw new Error(error.message);
+}
+
+/** "Ayo A." — stored whole for display, in parts so it can be edited later. */
+export async function saveProfileName(args: {
+  userId: string;
+  firstName: string;
+  lastInitial: string;
+  displayName: string;
+}) {
+  const { error } = await createClient()
+    .from('profiles')
+    .update({
+      first_name: args.firstName,
+      last_initial: args.lastInitial,
+      display_name: args.displayName,
+    })
+    .eq('id', args.userId);
   if (error) throw new Error(error.message);
 }

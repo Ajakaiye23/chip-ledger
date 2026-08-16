@@ -50,7 +50,7 @@ export function monthlyLeaderboard(
 
     for (const player of state.players) {
       // Someone who never put money in isn't a participant, just an empty seat.
-      if (player.totalBuyInCents === 0 && player.netCents === 0) continue;
+      if (player.startedWithCents === 0 && player.netCents === 0) continue;
 
       const key = player.player.user_id
         ? `user:${player.player.user_id}`
@@ -59,7 +59,7 @@ export function monthlyLeaderboard(
       const existing = rows.get(key);
       if (existing) {
         existing.netCents += player.netCents;
-        existing.buyInCents += player.totalBuyInCents;
+        existing.buyInCents += player.startedWithCents;
         existing.games += 1;
         existing.bestCents = Math.max(existing.bestCents, player.netCents);
         existing.worstCents = Math.min(existing.worstCents, player.netCents);
@@ -68,7 +68,7 @@ export function monthlyLeaderboard(
           key,
           name: player.player.display_name,
           netCents: player.netCents,
-          buyInCents: player.totalBuyInCents,
+          buyInCents: player.startedWithCents,
           games: 1,
           bestCents: player.netCents,
           worstCents: player.netCents,

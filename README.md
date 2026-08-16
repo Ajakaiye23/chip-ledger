@@ -21,8 +21,9 @@ through with no accounts and no backend. Nothing there is saved.
 
 ## What it does
 
-**Accounts.** Google and Apple sign-in through Supabase Auth. A profile row is
-created on first sign-in; everything a player does is tied to it.
+**Accounts.** Google and Apple sign-in through Supabase Auth. Everyone picks a
+name as first name plus last initial — "Ayo A." — which is enough for a room of
+friends to tell two Sams apart and no more of anyone's name than that needs.
 
 **Your numbers.** Money played through and net result over the last 24 hours,
 7 days, 30 days, your last 10 games, and all time — plus a round-by-round feed.
@@ -40,24 +41,29 @@ mid-game (possible, but tucked away, because it usually means someone made a
 mistake).
 
 **Blinds and the button.** Set the small and big blind when you open the table.
-The button moves one seat each round, the app says who posts what, and it gets
-heads-up right — with two players the dealer posts the small blind. When a round
-is on you, your phone flashes it at you, so nobody has to ask whose deal it is.
+"Next hand" moves the button one seat, the app says who posts what, and it gets
+heads-up right — with two players the dealer posts the small blind. When a hand is
+on you, your phone flashes it at you. This is the only thing tracked hand by hand,
+because it costs nothing and settles the argument that comes up every orbit.
 
 **Buy in for whatever you like.** Type a dollar amount and see the chips it buys,
 or count out the chips and see what they're worth. Rebuy as often as you want.
 Cashing out takes money off the table without it counting as a loss.
 
-**Counting up.** At the end of a round each player's chips are counted by colour,
-which is what you're doing at the table anyway; the app values the pile at the
-round's prices and the difference is that player's profit.
+**Two numbers a night.** What each player started with and what they ended with.
+Nothing is scored hand by hand — you count chips once, at the end, by colour, and
+the app does the arithmetic. Rebuys just add to what they started with.
 
 **Leave and come back.** Sitting out, walking away, or joining at round nine are
 all just rows in an append-only history. Rejoining reuses your seat rather than
 making a new one, so nothing is ever orphaned.
 
-**History.** The night's money on one screen: who owes and who is owed, and what
-each player won or lost in every round.
+**The night.** One screen: what everyone started with, what they ended with, the
+difference, and the log of money going on and off the table.
+
+**Ranks.** Points for nights you finish up — one for a win, two for up $25, three
+for up $100 — carrying you from Rail bird to Legend. Losing nights cost nothing;
+this is a record of what you've done, not a rating that punishes a bad beat.
 
 **Monthly leaderboard.** Everyone you played with this calendar month, ranked by
 what they're up. Resets on the 1st.
@@ -153,26 +159,28 @@ two dimes is 5c, so a dime-and-quarter table can still land on nickels. That's w
 the app tells you the smallest amount your chip set can express when you set the
 blinds.
 
-## How the round maths works
+## How the maths works
 
-The whole ledger rests on one identity. A player's stack at the end of a round is
+A night reduces to one line per player:
 
 ```
-end = start + bought in − cashed out + won/lost
+net = ended with + cashed out - started with
 ```
 
-so their profit for that round is `end − (start + bought in − cashed out)`, and
-their profit for the night is `final stack + cashed out − bought in`.
-
-Nothing is ever overwritten: buy-ins and round stacks are append-only rows, and a
-player who wasn't at the table for a round simply has no row for it. That's why
-late joins, walk-aways and rejoins need no special handling — see
+`started with` is the sum of their buy-ins, `ended with` is the single final count,
+and `cashed out` covers money taken off the table mid-game (which is not a loss).
+Buy-ins are append-only rows, so a rebuy at midnight is just another row; the final
+count lives on the player's seat because there is exactly one of them. See
 `src/lib/ledger.ts` and its tests.
+
+Nobody's number exists until they are counted, so an uncounted player sits at zero
+rather than being guessed at, and the app won't let a game be settled until
+everyone has been counted up.
 
 ## Tests
 
 ```bash
-npm test          # settlement, ledger and blind maths (38 tests)
+npm test          # settlement, ledger, blinds, ranks and names (47 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
 ```
@@ -188,8 +196,10 @@ checked to reuse the existing seat.
 
 ```
 src/lib/settle.ts      minimum-payment settlement
-src/lib/ledger.ts      rebuilds the game from its rows; chip maths and change-making
-src/lib/blinds.ts      seating order, the button, and who posts what
+src/lib/ledger.ts      started-with / ended-with maths, chips, and change-making
+src/lib/blinds.ts      seating order and who posts what
+src/lib/rank.ts        points per night and the rank ladder
+src/lib/name.ts        "first name, last initial"
 src/lib/stats.ts       the rolling account windows
 src/lib/leaderboard.ts the monthly standings
 src/lib/queries.ts     reads (a game; an account's whole history)
@@ -209,9 +219,9 @@ scripts/make-icons.mjs draws the PWA icons (no image dependencies)
   is always fetched fresh — a stale balance is worse than a spinner.
 - **Currency.** Everything is integer cents with a `$` in front. There's no
   multi-currency support.
-- **It doesn't run the hand.** No cards, no pots, no betting rounds. It knows the
-  seating order and the blind structure, and it knows what everyone's stack was
-  worth when the round closed. Everything in between is your game.
+- **It doesn't run the game.** No cards, no pots, no betting. It knows the seating
+  order, the blind structure, and what everyone started and ended with. Everything
+  in between is your game.
 - **Performance.** The look is built from things that cost nothing to run: system
   fonts (no download), CSS gradients rasterised once, and static shadows. No web
   fonts, no images beyond the icons, no filters or blurs on scrolling surfaces,

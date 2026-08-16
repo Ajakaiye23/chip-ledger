@@ -55,16 +55,19 @@ export function SettlePanel({
 
   return (
     <div className="space-y-5">
-      <section className="card p-4">
-        <h2 className="display mb-3 text-xl font-semibold">Where everyone stands</h2>
-        <ul className="divide-y divide-white/5">
+      <section>
+        <h2 className="plate mb-1.5">Where everyone stands</h2>
+        <ul className="card">
           {state.players.map((p) => (
-            <li key={p.player.id} className="flex items-center justify-between py-2.5 text-sm">
+            <li
+              key={p.player.id}
+              className="ledger-row flex items-center justify-between px-4 py-2.5 text-sm last:border-b-0"
+            >
               <span>
                 {p.player.display_name}
                 <span className="ml-2 text-xs text-ink-500">
-                  in {formatMoney(p.totalBuyInCents)} · out{' '}
-                  {formatMoney(p.currentStackCents + p.totalCashOutCents)}
+                  in {formatMoney(p.startedWithCents)} · out{' '}
+                  {p.counted ? formatMoney((p.endedWithCents ?? 0) + p.cashedOutCents) : '—'}
                 </span>
               </span>
               <Money cents={p.netCents} sign className="font-semibold" />
@@ -73,9 +76,9 @@ export function SettlePanel({
         </ul>
       </section>
 
-      <section className="card space-y-4 p-4">
+      <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="display text-xl font-semibold">Who pays whom</h2>
+          <h2 className="plate">Who pays whom</h2>
           {payments.length > 0 ? (
             <span className="text-xs text-ink-500">
               {payments.length} {payments.length === 1 ? 'payment' : 'payments'}
@@ -88,16 +91,16 @@ export function SettlePanel({
           <Empty>Nobody owes anybody. Either the night hasn&apos;t started or it ended dead even.</Empty>
         ) : (
           <>
-            <ul className="space-y-2">
+            <ul className="card">
               {payments.map((p, i) => (
                 <li
                   key={`${p.fromPlayerId}-${p.toPlayerId}-${i}`}
-                  className="flex items-center gap-3 rounded-xl border border-brass-500/15 bg-night-950/60 p-3"
+                  className="ledger-row flex items-center gap-3 px-4 py-3 last:border-b-0"
                 >
                   <span className="min-w-0 flex-1 truncate">{nameOf(p.fromPlayerId)}</span>
                   <span aria-hidden className="text-brass-400">→</span>
                   <span className="min-w-0 flex-1 truncate">{nameOf(p.toPlayerId)}</span>
-                  <span className="shrink-0 font-semibold tabular">{formatMoney(p.amountCents)}</span>
+                  <span className="figure shrink-0 text-lg">{formatMoney(p.amountCents)}</span>
                 </li>
               ))}
             </ul>
@@ -113,7 +116,7 @@ export function SettlePanel({
       </section>
 
       {isHost ? (
-        <section className="card space-y-3 p-4">
+        <section className="space-y-3 border-t border-white/10 pt-5">
           {settled ? (
             <>
               <p className="text-sm text-ink-300">
@@ -140,12 +143,13 @@ export function SettlePanel({
           ) : (
             <>
               <p className="text-sm text-ink-300">
-                Locking the game freezes these numbers into everyone&apos;s history and stops
-                further buy-ins.
+                {state.uncounted > 0
+                  ? `${state.uncounted} ${state.uncounted === 1 ? 'player still needs' : 'players still need'} counting before this can be settled.`
+                  : "Locking the game freezes these numbers into everyone's history and stops further buy-ins."}
               </p>
               <Button
                 className="w-full"
-                disabled={busy || payments.length === 0}
+                disabled={busy || payments.length === 0 || state.uncounted > 0}
                 onClick={async () => {
                   setBusy(true);
                   setError(null);
@@ -156,7 +160,7 @@ export function SettlePanel({
                       totals: state.players.map((p) => ({
                         playerId: p.player.id,
                         netCents: p.netCents,
-                        buyInCents: p.totalBuyInCents,
+                        startedWithCents: p.startedWithCents,
                       })),
                     });
                     onChange();
@@ -169,7 +173,7 @@ export function SettlePanel({
               >
                 {busy ? 'Settling…' : 'Settle and close the game'}
               </Button>
-              {error ? <p className="text-sm text-red-400">{error}</p> : null}
+              {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
             </>
           )}
         </section>
