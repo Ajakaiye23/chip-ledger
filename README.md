@@ -35,10 +35,12 @@ code takes a seat; the host can also add people who don't have the app at all,
 and keeps the books for them. The eight-seat limit is enforced in the database,
 not the UI, because a join code is a link and two people can tap it at once.
 
-**Only the chips you're using.** Switch colours on and off — most home games run
-three of the five — and set what each is worth. Chosen once when the table opens
-and used for every count that night. A colour switched off isn't deleted; turning
-it back on remembers what it was worth.
+**Only the chips you're using.** The host switches colours on and off — most home
+games run three of the five — and sets what each is worth, once, when the table
+opens; those values are used for every count that night. Nobody else can change
+them: the row-level security policy on `games` only lets the host write, so a
+player's attempt updates nothing rather than erroring. A colour switched off isn't
+deleted; turning it back on remembers what it was worth.
 
 **Blinds and the button.** Set the small and big blind when you open the table.
 "Next hand" moves the button one seat, the app says who posts what, and it gets
@@ -214,9 +216,11 @@ scripts/make-icons.mjs draws the PWA icons (no image dependencies)
 
 ## Notes and limits
 
-- **Trust model.** This is a home game, so any player at a table can record a
-  buy-in or enter a chip count; only the host opens and closes rounds, re-prices
-  chips, and locks the settlement. Rows are attributed to whoever wrote them.
+- **Trust model.** This is a home game, so any player can record a buy-in or move
+  the button. Chip values, the blinds, the table name and the settlement are the
+  host's alone. A final count can be recorded by the host or by that player for
+  themselves, and nobody else. All of it is enforced by row-level security, not by
+  the UI hiding buttons.
 - **Offline.** The service worker keeps the app shell, not the ledger. Money data
   is always fetched fresh — a stale balance is worse than a spinner.
 - **Currency.** Everything is integer cents with a `$` in front. There's no

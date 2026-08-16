@@ -159,6 +159,45 @@ begin
 end;
 $$;
 
+-- ------------------------------------------------------------ chip values --
+
+-- The host sets what the chips are worth.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+update public.games
+set default_chip_values = '[{"key":"red","label":"Red","color":"#dc2626","valueCents":25}]'::jsonb
+where id = :'game_id';
+
+do $$
+begin
+  assert (select (default_chip_values->0->>'valueCents')::int from public.games) = 25,
+    'the host should be able to set chip values';
+end;
+$$;
+
+-- A player at the table cannot. RLS filters the row out, so the update is a no-op
+-- rather than an error — which is why this asserts on the value, not on a raise.
+set test.uid = '22222222-2222-2222-2222-222222222222';
+update public.games
+set default_chip_values = '[{"key":"red","label":"Red","color":"#dc2626","valueCents":9999}]'::jsonb
+where id = :'game_id';
+
+do $$
+begin
+  assert (select (default_chip_values->0->>'valueCents')::int from public.games) = 25,
+    'a non-host must not be able to change what the chips are worth';
+end;
+$$;
+
+-- Nor the blinds, the name, or anything else on the game.
+update public.games set small_blind_cents = 500, name = 'Hijacked' where id = :'game_id';
+
+do $$
+begin
+  assert (select small_blind_cents from public.games) = 10, 'blinds are the host''s to set';
+  assert (select name from public.games) = 'Friday night', 'so is the table name';
+end;
+$$;
+
 -- --------------------------------------------------------- table capacity --
 
 set test.uid = '11111111-1111-1111-1111-111111111111';

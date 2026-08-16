@@ -103,7 +103,9 @@ export function HandPanel({
             disabled={!isHost || !repricing || settled}
           />
           <p className="mt-2 text-xs text-ink-500">
-            Set when the table opened, and used for every count tonight.
+            {isHost
+              ? 'Yours to set. Chosen when the table opened, and used for every count tonight.'
+              : 'The host sets what the chips are worth. These are used for every count tonight.'}
           </p>
           {isHost && !settled ? (
             <Button size="sm" variant="ghost" className="mt-2" onClick={() => setRepricing((v) => !v)}>
