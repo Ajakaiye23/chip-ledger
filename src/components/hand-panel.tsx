@@ -27,7 +27,9 @@ export function HandPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [repricing, setRepricing] = useState(false);
+  const [pendingChips, setPendingChips] = useState<ChipDenomination[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const { dealer, smallBlind, bigBlind } = blindsFor(data.players, data.game.dealer_player_id);
   const headsUp = dealer && smallBlind && dealer.id === smallBlind.id;
@@ -95,22 +97,66 @@ export function HandPanel({
         <h2 className="plate mb-1.5">Chip values</h2>
         <div className="border-l-2 border-white/15 pl-3">
           <ChipValuesEditor
+            // Remount on cancel so the editor drops whatever was being typed.
+            key={repricing ? 'editing' : 'idle'}
             chips={data.game.default_chip_values}
-            onChange={async (next: ChipDenomination[]) => {
-              await setChipValues(data.game.id, next);
-              onChange();
-            }}
+            onChange={setPendingChips}
             disabled={!isHost || !repricing || settled}
           />
+
           <p className="mt-2 text-xs text-ink-500">
             {isHost
               ? 'Yours to set. Chosen when the table opened, and used for every count tonight.'
               : 'The host sets what the chips are worth. These are used for every count tonight.'}
           </p>
+
           {isHost && !settled ? (
-            <Button size="sm" variant="ghost" className="mt-2" onClick={() => setRepricing((v) => !v)}>
-              {repricing ? 'Done' : 'Change them'}
-            </Button>
+            repricing ? (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={saving || pendingChips?.length === 0}
+                  onClick={async () => {
+                    setSaving(true);
+                    setError(null);
+                    try {
+                      if (pendingChips) await setChipValues(data.game.id, pendingChips);
+                      setRepricing(false);
+                      setPendingChips(null);
+                      onChange();
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'Could not save the chip values.');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                >
+                  {saving ? 'Saving…' : 'Save chip values'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => {
+                    setRepricing(false);
+                    setPendingChips(null);
+                    setError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="ghost" className="mt-2" onClick={() => setRepricing(true)}>
+                Change them
+              </Button>
+            )
+          ) : null}
+
+          {pendingChips?.length === 0 ? (
+            <p className="mt-2 text-xs text-brass-400">
+              At least one colour has to be in play.
+            </p>
           ) : null}
         </div>
       </section>

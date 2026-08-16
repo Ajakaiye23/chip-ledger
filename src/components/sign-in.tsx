@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from './ui';
 
-type Provider = 'google' | 'apple';
+type Provider = 'google';
 
 export function SignIn({ next = '/dashboard' }: { next?: string }) {
   const [busy, setBusy] = useState<Provider | null>(null);
@@ -29,18 +29,13 @@ export function SignIn({ next = '/dashboard' }: { next?: string }) {
 
   return (
     <div className="space-y-3">
-      <Button onClick={() => signIn('google')} disabled={busy !== null} className="w-full">
+      <Button
+        onClick={() => signIn('google')}
+        disabled={busy !== null}
+        className="w-full py-3.5 text-base"
+      >
         <GoogleMark />
         {busy === 'google' ? 'Opening Google…' : 'Continue with Google'}
-      </Button>
-      <Button
-        onClick={() => signIn('apple')}
-        disabled={busy !== null}
-        variant="ghost"
-        className="w-full bg-white text-black hover:bg-white/90"
-      >
-        <AppleMark />
-        {busy === 'apple' ? 'Opening Apple…' : 'Continue with Apple'}
       </Button>
       {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
       <p className="text-center text-xs text-ink-500">
@@ -61,10 +56,3 @@ function GoogleMark() {
   );
 }
 
-function AppleMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M16.4 12.7c0-2.5 2-3.7 2.1-3.8-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.6.9s-1.9-.9-3.1-.8c-1.6 0-3.1.9-3.9 2.3-1.7 2.9-.4 7.2 1.2 9.5.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8s1.9.8 3.1.7c1.3 0 2.1-1.2 2.9-2.3.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.6-1-2.6-3.5zM14 4.7c.7-.8 1.1-1.9 1-3-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.5z" />
-    </svg>
-  );
-}
