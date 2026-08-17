@@ -92,6 +92,57 @@ describe('chip maths', () => {
     expect(awkward.totalCents).toBe(35);
   });
 
+  it('offers the nearest amount above as well as below', () => {
+    const dimesAndQuarters: ChipDenomination[] = [
+      { key: 'a', label: 'Dime', color: '#fff', valueCents: 10 },
+      { key: 'b', label: 'Quarter', color: '#f00', valueCents: 25 },
+    ];
+
+    // Rounding down from 5c lands on nothing, so the only usable offer is above.
+    const nickel = makeChange(5, dimesAndQuarters);
+    expect(nickel.totalCents).toBe(0);
+    expect(nickel.nextUpCents).toBe(10);
+
+    // 37c sits between 35c and 40c, and both are worth offering.
+    const awkward = makeChange(37, dimesAndQuarters);
+    expect(awkward.totalCents).toBe(35);
+    expect(awkward.nextUpCents).toBe(40);
+
+    // An amount that works needs no alternatives at all.
+    expect(makeChange(35, dimesAndQuarters).nextUpCents).toBeNull();
+  });
+
+  it('always finds an amount above, whatever the chips', () => {
+    const sets: ChipDenomination[][] = [
+      [{ key: 'a', label: 'A', color: '#fff', valueCents: 10 }],
+      [
+        { key: 'a', label: 'A', color: '#fff', valueCents: 10 },
+        { key: 'b', label: 'B', color: '#f00', valueCents: 25 },
+        { key: 'c', label: 'C', color: '#00f', valueCents: 75 },
+      ],
+      [
+        { key: 'a', label: 'A', color: '#fff', valueCents: 25 },
+        { key: 'b', label: 'B', color: '#f00', valueCents: 500 },
+      ],
+    ];
+
+    for (const chips of sets) {
+      for (let cents = 1; cents <= 600; cents++) {
+        const made = makeChange(cents, chips);
+        if (made.exact) continue;
+        // There is always a reachable amount above, and it is genuinely above.
+        expect(made.nextUpCents).not.toBeNull();
+        expect(made.nextUpCents!).toBeGreaterThan(cents);
+        // And it is really reachable: re-asking for it comes back exact.
+        expect(makeChange(made.nextUpCents!, chips).exact).toBe(true);
+        // Nothing between the two is reachable, or it would have been offered.
+        for (let between = cents + 1; between < made.nextUpCents!; between++) {
+          expect(makeChange(between, chips).exact).toBe(false);
+        }
+      }
+    }
+  });
+
   it('reports what the smallest expressible amount is', () => {
     expect(chipGranularityCents(CHIP_PALETTE)).toBe(5);
     expect(chipGranularityCents(DEFAULT_CHIPS)).toBe(5);

@@ -197,8 +197,25 @@ greedy works are the exception, not the rule.
 
 So `makeChange` in `src/lib/ledger.ts` runs a real shortest-path DP over amounts
 and returns the fewest chips that make the number exactly. When an amount genuinely
-can't be built — 5c out of dimes and quarters — it says so and offers the closest
-reachable amount, rather than quietly dropping the difference.
+can't be built — 5c out of dimes and quarters — it says so and offers the nearest
+reachable amounts on *both* sides, rather than quietly dropping the difference.
+Looking only downward isn't enough: the nearest amount below 5c on a dime table is
+nothing at all, and "take $0.00 instead" is not an offer.
+
+**Amounts that can't exist are refused, not rounded.** Buying in, cashing out and
+counting up are all physical movements of chips, so the app won't record one the
+chips can't make. This matters most on cash-out, where it's tempting to type a
+number and move on: an impossible entry balances nowhere, and the discrepancy
+surfaces at the end of the night as an imbalance pinned on whoever happened to be
+counted last. Refusing it up front keeps that check meaning what it says — if the
+totals don't reconcile, somebody really did miscount.
+
+What the app deliberately does *not* model is which chips a particular player is
+holding at a given moment. It knows what everyone bought in for and what they
+counted up, not the stack in front of them mid-game. So if you want $7.15 off the
+table and you're holding three quarters and a stack of dimes, making the change is
+a job for the table, not the app — and swapping chips of equal value never changes
+anyone's numbers, so there is nothing to record.
 
 Note that a stack's *value* is finer-grained than any single chip: a quarter minus
 two dimes is 5c, so a dime-and-quarter table can still land on nickels. That's why
@@ -226,7 +243,7 @@ everyone has been counted up.
 ## Tests
 
 ```bash
-npm test          # settlement, ledger, blinds, ranks, names, debts (59 tests)
+npm test          # settlement, ledger, blinds, ranks, names, debts (62 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
 npm run test:e2e  # a browser over every screen (needs the app running)

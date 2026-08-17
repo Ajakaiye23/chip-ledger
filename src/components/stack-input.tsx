@@ -6,7 +6,16 @@ import { formatMoney, parseMoney } from '@/lib/money';
 import type { ChipCounts, ChipDenomination } from '@/lib/types';
 import { ChipDot, inputClass } from './ui';
 
-export type StackValue = { cents: number; chips: ChipCounts | null };
+export type StackValue = {
+  cents: number;
+  chips: ChipCounts | null;
+  /**
+   * False when no combination of the chips in play adds up to `cents`, so this
+   * pile cannot physically exist on the table. Counting chips can never produce
+   * one — the total is summed from real chips — but typing an amount can.
+   */
+  exact: boolean;
+};
 
 /**
  * One control for "how much", usable two ways: type a dollar amount and see the
@@ -39,13 +48,17 @@ export function StackInput({
     const cents = parseMoney(raw);
     if (cents === null || cents <= 0) {
       setMade(null);
-      onChange({ cents: cents ?? 0, chips: null });
+      onChange({ cents: cents ?? 0, chips: null, exact: true });
       return;
     }
     // Not every amount can be built from every chip set — say so rather than round.
     const breakdown = makeChange(cents, chips);
     setMade(breakdown);
-    onChange({ cents, chips: breakdown.exact ? breakdown.chips : null });
+    onChange({
+      cents,
+      chips: breakdown.exact ? breakdown.chips : null,
+      exact: breakdown.exact,
+    });
   }
 
   function setCount(key: string, raw: string) {
@@ -54,7 +67,8 @@ export function StackInput({
     for (const k of Object.keys(counts)) if (!counts[k]) delete counts[k];
     const cents = chipsToCents(counts, chips);
     setDraft((cents / 100).toString());
-    onChange({ cents, chips: counts });
+    // Counted from chips that are physically there, so it always adds up.
+    onChange({ cents, chips: counts, exact: true });
   }
 
   return (
@@ -115,16 +129,23 @@ export function StackInput({
                 ))}
             </p>
           ) : made ? (
-            <p className="text-xs text-brass-400">
-              These chips can&apos;t make {formatMoney(value.cents)} exactly — the closest is{' '}
-              <button
-                type="button"
-                className="underline underline-offset-2"
-                onClick={() => setMoney(String(made.totalCents / 100))}
-              >
-                {formatMoney(made.totalCents)}
-              </button>
-              .
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-brass-400">
+              <span>
+                No stack of these chips makes {formatMoney(value.cents)}. Nearest:
+              </span>
+              {[made.totalCents, made.nextUpCents]
+                // Rounding down to nothing is not an offer worth showing.
+                .filter((c): c is number => c != null && c > 0)
+                .map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="pressable rounded border border-brass-500/40 px-2 py-1 underline-offset-2"
+                    onClick={() => setMoney(String(c / 100))}
+                  >
+                    {formatMoney(c)}
+                  </button>
+                ))}
             </p>
           ) : null}
         </>

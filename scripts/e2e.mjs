@@ -174,14 +174,34 @@ for (const [name, viewport] of [
   if (!breakdown) fail('buy-in', 'no chip breakdown shown for $20');
   else ok();
 
-  // An amount these chips cannot make must warn, not silently round.
+  // An amount these chips cannot make must be refused, not silently rounded:
+  // a pile that can't exist would come back at settle time as an imbalance
+  // pinned on whoever happened to be counted last.
   await amount.fill('0.07');
-  await page.waitForTimeout(150);
-  const warned = await page.getByText(/can't make/i).isVisible().catch(() => false);
-  if (!warned) fail('buy-in', 'no warning for an unmakeable amount');
+  await page.waitForTimeout(200);
+  const warned = await page.getByText(/No stack of these chips/i).isVisible().catch(() => false);
+  if (!warned) fail('buy-in', 'no warning for an amount the chips cannot make');
   else ok();
 
-  // Chip counting mode.
+  const submit = page.locator('button', { hasText: /Buy in for \$|Pick an amount/ }).last();
+  if (await submit.isEnabled()) fail('buy-in', 'an impossible amount could still be saved');
+  else ok();
+
+  // Rounding down from 7c lands on nothing, so the offer has to look upward.
+  const up = page.getByRole('button', { name: '$0.10', exact: true });
+  if (!(await up.isVisible().catch(() => false)))
+    fail('buy-in', 'no reachable amount offered above an unmakeable one');
+  else ok();
+
+  await up.click();
+  await page.waitForTimeout(200);
+  if (!(await submit.isEnabled())) fail('buy-in', 'taking the suggestion did not unblock saving');
+  else ok();
+
+  // Chip counting mode, starting from nothing so the total is only the chips
+  // typed here — taking the suggestion above left a dime's worth loaded.
+  await amount.fill('');
+  await page.waitForTimeout(150);
   await page.getByRole('button', { name: 'Count chips' }).click();
   await page.getByLabel('Red chips').fill('4');
   await page.waitForTimeout(150);

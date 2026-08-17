@@ -451,12 +451,18 @@ function MoneySheet({
   userId: string;
   onDone: () => void;
 }) {
-  const [value, setValue] = useState<StackValue>({ cents: 0, chips: null });
+  const [value, setValue] = useState<StackValue>({ cents: 0, chips: null, exact: true });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Both directions are a physical movement of chips: you can't be handed a pile
+  // the set can't build, and you can't push one across the table either. Letting
+  // an impossible amount into the ledger would come back at the end of the night
+  // as an imbalance blamed on whoever got counted last.
+  const impossible = value.cents > 0 && !value.exact;
+
   async function submit() {
-    if (!player || value.cents <= 0) return;
+    if (!player || value.cents <= 0 || impossible) return;
     setBusy(true);
     setError(null);
     try {
@@ -468,7 +474,7 @@ function MoneySheet({
         chips: value.chips,
         userId,
       });
-      setValue({ cents: 0, chips: null });
+      setValue({ cents: 0, chips: null, exact: true });
       onDone();
       onClose();
     } catch (e) {
@@ -492,14 +498,20 @@ function MoneySheet({
         </p>
         <StackInput chips={chipValues} value={value} onChange={setValue} autoFocus />
         {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
-        <Button className="w-full" onClick={submit} disabled={busy || value.cents <= 0}>
+        <Button
+          className="w-full"
+          onClick={submit}
+          disabled={busy || value.cents <= 0 || impossible}
+        >
           {busy
             ? 'Saving…'
-            : value.cents <= 0
-              ? kind === 'buy_in'
-                ? 'Buy in'
-                : 'Cash out'
-              : `${kind === 'buy_in' ? 'Buy in for' : 'Cash out'} ${formatMoney(value.cents)}`}
+            : impossible
+              ? 'Pick an amount the chips can make'
+              : value.cents <= 0
+                ? kind === 'buy_in'
+                  ? 'Buy in'
+                  : 'Cash out'
+                : `${kind === 'buy_in' ? 'Buy in for' : 'Cash out'} ${formatMoney(value.cents)}`}
         </Button>
       </div>
     </Sheet>
@@ -595,19 +607,25 @@ function FinalCountSheet({
   const [value, setValue] = useState<StackValue>(() => ({
     cents: entry?.player.final_stack_cents ?? 0,
     chips: entry?.player.final_chips ?? null,
+    exact: true,
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A count is a description of chips sitting on the table, so a total those
+  // chips can't add up to is a typo, not a stack. Counting by colour can't
+  // produce one; typing a total can.
+  const impossible = value.cents > 0 && !value.exact;
+
   if (!entry) return null;
 
   async function save() {
-    if (!entry) return;
+    if (!entry || impossible) return;
     setBusy(true);
     setError(null);
     try {
       await setFinalCount(entry.player.id, value.cents, value.chips);
-      setValue({ cents: 0, chips: null });
+      setValue({ cents: 0, chips: null, exact: true });
       onDone();
       onClose();
     } catch (e) {
@@ -642,8 +660,8 @@ function FinalCountSheet({
 
         {error ? <p className="text-sm text-rouge-400">{error}</p> : null}
 
-        <Button className="w-full" onClick={save} disabled={busy}>
-          {busy ? 'Saving…' : 'Save their count'}
+        <Button className="w-full" onClick={save} disabled={busy || impossible}>
+          {busy ? 'Saving…' : impossible ? 'No stack adds up to that' : 'Save their count'}
         </Button>
 
         {entry.counted ? (

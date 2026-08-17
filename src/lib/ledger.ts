@@ -11,6 +11,14 @@ export type ChipBreakdown = {
   totalCents: number;
   /** False when these denominations can't make the amount at all. */
   exact: boolean;
+  /**
+   * The smallest amount above the one asked for that these chips *can* make.
+   *
+   * Rounding down alone is not a usable suggestion: the nearest amount below 7c
+   * on a dime table is nothing at all, and "take $0.00 instead" is not an offer.
+   * Null when the amount was exact, or when the fallback path ran.
+   */
+  nextUpCents: number | null;
 };
 
 const MAX_DP_STEPS = 2_000_000;
@@ -32,21 +40,26 @@ const MAX_DP_STEPS = 2_000_000;
 export function makeChange(cents: number, denoms: ChipDenomination[]): ChipBreakdown {
   const usable = denoms.filter((d) => d.valueCents > 0);
   if (cents <= 0 || usable.length === 0) {
-    return { chips: {}, totalCents: 0, exact: cents === 0 };
+    return { chips: {}, totalCents: 0, exact: cents === 0, nextUpCents: null };
   }
 
   // Every reachable amount is a multiple of the gcd, so work in those units.
   const step = usable.reduce((g, d) => gcd(g, d.valueCents), 0);
   const target = Math.floor(cents / step);
+  const smallest = Math.min(...usable.map((d) => d.valueCents)) / step;
 
-  if (target > MAX_DP_STEPS) return greedyChange(cents, usable);
+  // Run past the target by one chip. If L is the largest reachable amount at or
+  // below the target then L + smallest is reachable and above it, so the nearest
+  // amount above the target is always found inside that margin.
+  const ceiling = target + smallest;
+  if (ceiling > MAX_DP_STEPS) return greedyChange(cents, usable);
 
   // best[i] = fewest chips making i units; from[i] = the denomination used last.
-  const best = new Int32Array(target + 1).fill(-1);
-  const from = new Int32Array(target + 1).fill(-1);
+  const best = new Int32Array(ceiling + 1).fill(-1);
+  const from = new Int32Array(ceiling + 1).fill(-1);
   best[0] = 0;
 
-  for (let i = 1; i <= target; i++) {
+  for (let i = 1; i <= ceiling; i++) {
     for (let d = 0; d < usable.length; d++) {
       const units = usable[d].valueCents / step;
       if (units > i) continue;
@@ -72,7 +85,19 @@ export function makeChange(cents: number, denoms: ChipDenomination[]): ChipBreak
   }
 
   const totalCents = at * step;
-  return { chips, totalCents, exact: totalCents === cents };
+  if (totalCents === cents) {
+    return { chips, totalCents, exact: true, nextUpCents: null };
+  }
+
+  let up = target + 1;
+  while (up <= ceiling && best[up] < 0) up++;
+
+  return {
+    chips,
+    totalCents,
+    exact: false,
+    nextUpCents: up <= ceiling ? up * step : null,
+  };
 }
 
 /** Fallback for absurdly large amounts, where the exact DP isn't worth the memory. */
@@ -87,7 +112,7 @@ function greedyChange(cents: number, denoms: ChipDenomination[]): ChipBreakdown 
       left -= n * d.valueCents;
     }
   }
-  return { chips, totalCents: cents - left, exact: left === 0 };
+  return { chips, totalCents: cents - left, exact: left === 0, nextUpCents: null };
 }
 
 function gcd(a: number, b: number): number {
