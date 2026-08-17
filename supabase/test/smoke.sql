@@ -613,5 +613,69 @@ begin
 end;
 $$;
 
+-- --------------------------------------------------- backfilling old debts --
+--
+-- A game settled before 0007 has a payment plan and no debts, because the
+-- trigger that builds them did not exist when the settlement was written. 0008
+-- rewrites every settlement onto itself to fire the trigger once per game. This
+-- reproduces that: switch the trigger off, write a plan the way the old code
+-- would have, switch it back on, and check the backfill picks it up.
+
+reset role;
+
+alter table public.settlements disable trigger settlements_to_debts;
+delete from public.debts;
+
+update public.settlements
+set payments = jsonb_build_array(jsonb_build_object(
+      'fromPlayerId', (select id from public.game_players
+                       where display_name = 'Sam' and game_id = :'game_id'),
+      'toPlayerId', (select id from public.game_players
+                     where display_name = 'Hannah' and game_id = :'game_id'),
+      'amountCents', 1000))
+where game_id = :'game_id';
+
+do $$
+begin
+  assert (select count(*) from public.debts) = 0,
+    'a settlement written without the trigger leaves no debts behind';
+end;
+$$;
+
+alter table public.settlements enable trigger settlements_to_debts;
+
+-- This is the whole of 0008.
+update public.settlements set payments = payments;
+
+do $$
+begin
+  assert (select count(*) from public.debts) = 1,
+    'the backfill should build the debt the old settlement implies';
+  assert (select amount_cents from public.debts) = 1000, 'for the amount in the plan';
+  assert (select status from public.debts) = 'outstanding', 'and leave it outstanding';
+end;
+$$;
+
+-- Running it twice must not double anything up, since a nervous operator will.
+update public.settlements set payments = payments;
+
+do $$
+begin
+  assert (select count(*) from public.debts) = 1, 'the backfill is safe to re-run';
+end;
+$$;
+
+-- And it must not undo a debt somebody has already been paid for.
+update public.debts set status = 'paid';
+update public.settlements set payments = payments;
+
+do $$
+begin
+  assert (select count(*) from public.debts) = 1,
+    're-running the backfill leaves a paid debt alone';
+  assert (select status from public.debts) = 'paid', 'and does not reopen it';
+end;
+$$;
+
 reset role;
 \echo '--- schema smoke test passed ---'
