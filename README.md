@@ -53,6 +53,11 @@ heads-up right — with two players the dealer posts the small blind. When a han
 on you, your phone flashes it at you. This is the only thing tracked hand by hand,
 because it costs nothing and settles the argument that comes up every orbit.
 
+**What beats what.** The hand rankings are folded away on the Hand tab, in order,
+each with a hand that shows it — "does a flush beat a straight" is answered faster
+by seeing five diamonds sitting above five in a row than by reading either name.
+Plus the tiebreak rule, which is the question that follows it.
+
 **Buy in for whatever you like.** Type a dollar amount and see the chips it buys,
 or count out the chips and see what they're worth. Rebuy as often as you want.
 Cashing out takes money off the table without it counting as a loss.
@@ -277,7 +282,7 @@ src/lib/leaderboard.ts the monthly standings
 src/lib/queries.ts     reads (a game; an account's history; debts; the boards)
 src/lib/actions.ts     writes (buy-ins, counts, settlement, friends, debts)
 src/hooks/use-game.ts  live sync for everyone at the table
-src/components/        the UI
+src/components/        the UI (hand-rankings.tsx is the what-beats-what chart)
 supabase/migrations/   schema, RLS, join-by-code
 scripts/make-icons.mjs draws the PWA icons (no image dependencies)
 ```

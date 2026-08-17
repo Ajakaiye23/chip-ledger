@@ -7,6 +7,7 @@ import { blindsFor, blindsLabel } from '@/lib/blinds';
 import { formatMoney } from '@/lib/money';
 import type { ChipDenomination } from '@/lib/types';
 import { ChipValuesEditor } from './chip-values-editor';
+import { HandRankings } from './hand-rankings';
 import { Button } from './ui';
 
 /**
@@ -91,6 +92,10 @@ export function HandPanel({
         <p className="mt-2 text-xs text-ink-500">
           The app doesn&apos;t score hands. Money is counted once, at the end of the night.
         </p>
+      </section>
+
+      <section>
+        <HandRankings />
       </section>
 
       <section>

@@ -348,6 +348,53 @@ for (const [name, viewport] of [
   await ctx.close();
 }
 
+// The hand rankings: the argument every table has, so the order has to be right.
+for (const [name, viewport] of [
+  ['rankings/small', SMALL],
+  ['rankings/phone', PHONE],
+  ['rankings/desktop', DESKTOP],
+]) {
+  const { ctx, page, errors } = await newPage(viewport);
+  await page.goto(`${base}/preview`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Hand', exact: true }).click();
+  await page.waitForTimeout(200);
+
+  // Folded away until asked for, so it doesn't push the blinds off the screen.
+  const rows = page.locator('details ol li');
+  if (await rows.first().isVisible().catch(() => false))
+    fail(name, 'the rankings were open before anyone asked');
+  else ok();
+
+  await page.getByText('What beats what').click();
+  await page.waitForTimeout(250);
+
+  const listed = await rows.allTextContents();
+  const expected = [
+    'Royal flush', 'Straight flush', 'Four of a kind', 'Full house', 'Flush',
+    'Straight', 'Three of a kind', 'Two pair', 'One pair', 'High card',
+  ];
+  if (listed.length !== expected.length)
+    fail(name, `expected ${expected.length} hands, found ${listed.length}`);
+  else ok();
+
+  // Order is the whole point: a flush must sit above a straight.
+  const wrong = expected.findIndex((hand, i) => !listed[i]?.includes(hand));
+  if (wrong !== -1) fail(name, `hand ${wrong + 1} should be ${expected[wrong]}`);
+  else ok();
+
+  // Every hand shows five cards, or the example proves nothing.
+  const cardCounts = await rows.evaluateAll((els) =>
+    els.map((el) => el.querySelectorAll('[aria-label*=" of "]').length),
+  );
+  if (cardCounts.some((n) => n !== 5))
+    fail(name, `every hand needs five cards, got ${cardCounts.join(',')}`);
+  else ok();
+
+  await auditPage(page, `${name}/open`);
+  if (errors.length) fail(name, errors.join('; '));
+  await ctx.close();
+}
+
 // Rank and name are account-level things on the stats view.
 {
   const { ctx, page, errors } = await newPage(DESKTOP);
