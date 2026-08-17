@@ -16,7 +16,7 @@ export function roleFor(assignment: BlindAssignment, myPlayerId: string | null):
 }
 
 /**
- * Shown on your phone only, when this round is on you. Half the point of a home
+ * Shown on your phone only, when the hand is on you. Half the point of a home
  * game app is not having to ask "wait, am I the big blind?" every three minutes.
  */
 export function YourTurnBanner({
@@ -45,7 +45,7 @@ export function YourTurnBanner({
   if (!role) return null;
 
   const copy = {
-    dealer: { title: "You're the dealer", detail: 'Your deal this round.' },
+    dealer: { title: "You're the dealer", detail: 'Your deal this hand.' },
     small: {
       title: "You're the small blind",
       detail: `Post ${formatMoney(smallBlindCents)}${alsoDealer ? ' — heads-up, so you act first pre-flop' : ''}.`,

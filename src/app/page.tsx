@@ -41,18 +41,18 @@ export default async function LandingPage({
 
         <p className="max-w-md text-ink-300">
           Open a table, everyone joins with a six-character code, and the ledger keeps
-          itself: buy-ins, what each chip colour is worth this round, who won what, and
-          who owes whom at the end — in the fewest payments possible.
+          itself: buy-ins, what each chip colour is worth, what everyone counted up at
+          the end, and who owes whom — in the fewest payments possible.
         </p>
 
         <ul className="max-w-md space-y-2.5 text-sm text-ink-300">
           {[
             'Set what each chip colour is worth once, when you open the table.',
             'Buy in for as many chips as you like, rebuy any time.',
-            'Leave and rejoin, or join at round nine — nothing is lost.',
-            'Blinds, the dealer button, and a flash when a round is on you.',
-            'Per-round profit, a monthly leaderboard, and lifetime stats.',
-            'Settle up with the smallest possible number of payments.',
+            'Leave and rejoin, or turn up an hour late — nothing is lost.',
+            'Blinds, the dealer button, and a flash when the hand is on you.',
+            'A monthly leaderboard, a global board on percentage return, and lifetime stats.',
+            'Settle up with the smallest possible number of payments, then tick them off as the cash arrives.',
           ].map((line, i) => (
             <li key={line} className="flex items-start gap-2.5">
               <span

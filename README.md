@@ -1,10 +1,10 @@
 # Chip Ledger
 
-Bookkeeping for a home poker game. Everyone signs in with the Google or Apple
-account already on their phone, one person opens a table, the rest join with a
-six-character code, and the app keeps the ledger: buy-ins, what each chip colour
-is worth in each round, what every player won or lost round by round, and — at
-the end — who pays whom, in the fewest possible payments.
+Bookkeeping for a home poker game. Everyone signs in with the Google account
+already on their phone, one person opens a table, the rest join with a
+six-character code, and the app keeps the ledger: what each chip colour is worth,
+what everyone bought in for, what they counted up at the end, and — once the
+night is over — who pays whom, in the fewest possible payments.
 
 It installs to a phone home screen as a standalone app, and works the same on a
 laptop.
@@ -21,14 +21,14 @@ through with no accounts and no backend. Nothing there is saved.
 
 ## What it does
 
-**Accounts.** Google and Apple sign-in through Supabase Auth. Everyone picks a
-name as first name plus last initial — "Ayo A." — which is enough for a room of
-friends to tell two Sams apart and no more of anyone's name than that needs.
+**Accounts.** Google sign-in through Supabase Auth. Everyone picks a name as
+first name plus last initial — "Ayo A." — which is enough for a room of friends
+to tell two Sams apart and no more of anyone's name than that needs. (Apple
+sign-in is wired up but switched off; see the setup notes.)
 
 **Your numbers.** Money played through and net result over the last 24 hours,
-7 days, 30 days, your last 10 games, and all time — plus a round-by-round feed.
-A game counts toward a window based on when it wrapped up, so one long night
-doesn't smear across two weeks.
+7 days, 30 days, your last 10 games, and all time. A game counts toward a window
+based on when it wrapped up, so one long night doesn't smear across two weeks.
 
 **Handing over.** The host can pass the table to any seated player with an
 account, from that player's seat — and leaving as host asks who takes over first,
@@ -84,8 +84,22 @@ join a friend's table without needing the code.
 **Monthly leaderboard.** Everyone you played with this calendar month, ranked by
 what they're up. Resets on the 1st.
 
+**Global board.** Everyone who plays, ranked by *percentage return* rather than
+dollars — $60 up off $40 of buy-ins is a better night's poker than $60 up off
+$600, and ranking on raw money would just sort by who plays the biggest game. You
+need $10 staked across settled games to appear, which keeps out anyone who won one
+small pot and would otherwise sit on top at +100% forever.
+
 **Settling up.** At the end, the app computes the shortest list of payments that
 squares everyone. See [How the settle-up works](#how-the-settle-up-works).
+
+**Who owes you.** Those payments become debts you tick off as the cash actually
+arrives, on the settle screen and on your dashboard. Only the person being paid
+can tick one — that's what makes it mean anything: "I got the money", not "I say
+I paid" — and the moment they do, it clears off the other person's screen too. A
+guest has no account to tick with, so the host does theirs, same as their seat.
+Reopening a game to fix a miscount rebuilds the plan but never resurrects a debt
+somebody already handed cash over for.
 
 **A walkthrough.** A five-step guide opens the first time someone lands on the
 site, and stays one tap away behind the `?` in the header afterwards.
@@ -98,16 +112,21 @@ real install prompt; iOS gets Share → Add to Home Screen instructions.
 1. **Create a Supabase project** at [supabase.com](https://supabase.com) (the free
    tier is plenty for a home game).
 
-2. **Run the migration.** Open the SQL editor and paste in
-   `supabase/migrations/0001_init.sql`. That creates the tables, the row-level
-   security policies, the join-by-code function, and turns on realtime.
+2. **Run the migrations.** Open the SQL editor and run every file in
+   `supabase/migrations/` **in numbered order** — `0001` first, then `0002`, and
+   so on through the last one. Paste one file, run it, then the next; each builds
+   on the ones before it, so skipping or reordering will fail. Between them they
+   create the tables, the row-level security policies, join-by-code, the eight-seat
+   limit, host hand-over, friends and invitations, the debts ledger and the global
+   board, and turn on realtime.
 
 3. **Turn on the providers.** Authentication → Providers:
    - **Google**: create an OAuth client in Google Cloud Console, paste the client
      ID and secret in. Add Supabase's callback URL
      (`https://<project-ref>.supabase.co/auth/v1/callback`) as an authorised
      redirect URI.
-   - **Apple** (optional): needs a paid Apple Developer account ($99/yr). Create
+   - **Apple** (optional, and the button is currently hidden in the UI): needs a
+     paid Apple Developer account ($99/yr). Create
      an App ID, a Services ID (that's the client ID), and a Sign in with Apple
      key. Point the Services ID's return URL at Supabase's callback. Apple gives
      you a private key rather than a secret, so generate the secret locally:
@@ -207,18 +226,25 @@ everyone has been counted up.
 ## Tests
 
 ```bash
-npm test          # settlement, ledger, blinds, ranks and names (52 tests)
+npm test          # settlement, ledger, blinds, ranks, names, debts (59 tests)
 npm run test:db   # schema, RLS policies and RPCs against a local Postgres
 npm run typecheck
+npm run test:e2e  # a browser over every screen (needs the app running)
 ```
 
 `test:db` needs a Postgres you can reach with `psql`. It creates a throwaway
-database, stubs out the parts of Supabase the migration depends on (the `auth`
-schema, `auth.uid()`, the `anon`/`authenticated` roles), applies the migration
-and then plays out a game: a stranger is checked to be unable to read the table,
-a player is checked to be able to record their own final count but not anybody
-else's, rejoining is checked to reuse the existing seat, and a ninth player is
-checked to be turned away from a full table.
+database, stubs out the parts of Supabase the migrations depend on (the `auth`
+schema, `auth.uid()`, the `anon`/`authenticated` roles), applies every migration
+in order and then plays out a game: a stranger is checked to be unable to read
+the table, a player is checked to be able to record their own final count but not
+anybody else's, rejoining is checked to reuse the existing seat, a ninth player
+is checked to be turned away from a full table, a debtor is checked to be unable
+to clear their own debt, and a debt between two other people is checked not to
+appear on your dashboard in either direction.
+
+`test:e2e` drives a real Chromium over every screen at four viewport widths and
+fails on horizontal overflow, tap targets under 28px, clipped text, buttons that
+do nothing, sheets that won't close, and any console or page error.
 
 ## Layout
 
@@ -228,10 +254,11 @@ src/lib/ledger.ts      started-with / ended-with maths, chips, and change-making
 src/lib/blinds.ts      seating order and who posts what
 src/lib/rank.ts        points per night and the rank ladder
 src/lib/name.ts        "first name, last initial"
+src/lib/debts.ts       who is allowed to say a debt has been paid
 src/lib/stats.ts       the rolling account windows
 src/lib/leaderboard.ts the monthly standings
-src/lib/queries.ts     reads (a game; an account's whole history)
-src/lib/actions.ts     writes (buy-ins, rounds, stacks, settlement)
+src/lib/queries.ts     reads (a game; an account's history; debts; the boards)
+src/lib/actions.ts     writes (buy-ins, counts, settlement, friends, debts)
 src/hooks/use-game.ts  live sync for everyone at the table
 src/components/        the UI
 supabase/migrations/   schema, RLS, join-by-code

@@ -168,3 +168,15 @@ export async function respondToGameRequest(id: string, accept: boolean) {
   });
   if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
 }
+
+/**
+ * Clear a debt. Only the person owed can — that's the whole signal: it means
+ * "I got the money", not "I say I paid".
+ */
+export async function markDebtPaid(debtId: string, paid = true) {
+  const { error } = await createClient().rpc('mark_debt_paid', {
+    p_debt_id: debtId,
+    p_paid: paid,
+  });
+  if (error) throw new Error(error.message.replace(/^.*?:\s*/, ''));
+}

@@ -175,7 +175,13 @@ export function GameRoomView({
       {tab === 'night' ? <NightPanel data={data} state={state} /> : null}
 
       {tab === 'settle' ? (
-        <SettlePanel data={data} state={state} isHost={isHost} onChange={onChange} />
+        <SettlePanel
+          data={data}
+          state={state}
+          userId={userId}
+          isHost={isHost}
+          onChange={onChange}
+        />
       ) : null}
 
       <GuideSheet open={guide.open} onClose={guide.close} />

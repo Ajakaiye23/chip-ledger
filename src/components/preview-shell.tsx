@@ -10,6 +10,8 @@ import {
   sampleKnownPlayers,
   sampleLeaderboard,
   sampleOpenGames,
+  sampleDebts,
+  sampleGlobalBoard,
   sampleRequests,
   sampleSummaries,
 } from '@/lib/sample-game';
@@ -69,6 +71,8 @@ export function PreviewShell() {
           known={sampleKnownPlayers()}
           openGames={sampleOpenGames()}
           requests={sampleRequests()}
+          debts={sampleDebts()}
+          globalBoard={sampleGlobalBoard()}
         />
       )}
     </div>

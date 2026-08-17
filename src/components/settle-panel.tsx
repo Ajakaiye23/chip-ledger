@@ -3,24 +3,29 @@
 import { useMemo, useState } from 'react';
 import type { GameData } from '@/hooks/use-game';
 import type { GameState } from '@/lib/ledger';
-import { finishGame, reopenGame } from '@/lib/actions';
+import { finishGame, markDebtPaid, reopenGame } from '@/lib/actions';
+import { canClearDebt, outstandingDebts } from '@/lib/debts';
 import { formatMoney } from '@/lib/money';
 import { settle } from '@/lib/settle';
-import type { Payment } from '@/lib/types';
+import type { GameDebt, Payment } from '@/lib/types';
 import { Button, Empty, Money } from './ui';
 
 export function SettlePanel({
   data,
   state,
+  userId,
   isHost,
   onChange,
 }: {
   data: GameData;
   state: GameState;
+  userId: string;
   isHost: boolean;
   onChange: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [clearing, setClearing] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -43,10 +48,39 @@ export function SettlePanel({
   const inPlay = balances.filter((b) => b.netCents !== 0).length;
   const naive = Math.max(inPlay - 1, 0);
 
+  // Once the game is locked, the plan stops being a suggestion and becomes a
+  // list of debts people tick off as the cash actually changes hands.
+  const debts = settled ? data.debts : [];
+  const outstanding = outstandingDebts(debts);
+  const canClear = (debt: GameDebt) =>
+    canClearDebt(debt, { players: data.players, userId, isHost });
+
+  async function toggleDebt(debt: GameDebt) {
+    setClearing(debt.id);
+    setClearError(null);
+    try {
+      await markDebtPaid(debt.id, debt.status === 'outstanding');
+      onChange();
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : 'Could not update that.');
+    } finally {
+      setClearing(null);
+    }
+  }
+
   async function copySummary() {
+    // Once things are being ticked off, copy what's still owed, not the history.
+    const owing =
+      debts.length > 0
+        ? outstanding.map((d) => ({
+            fromPlayerId: d.from_player_id,
+            toPlayerId: d.to_player_id,
+            amountCents: d.amount_cents,
+          }))
+        : payments;
     const lines = [
       `${data.game.name} — settle up`,
-      ...payments.map((p) => `${nameOf(p.fromPlayerId)} pays ${nameOf(p.toPlayerId)} ${formatMoney(p.amountCents)}`),
+      ...owing.map((p) => `${nameOf(p.fromPlayerId)} pays ${nameOf(p.toPlayerId)} ${formatMoney(p.amountCents)}`),
     ];
     await navigator.clipboard?.writeText(lines.join('\n'));
     setCopied(true);
@@ -79,7 +113,13 @@ export function SettlePanel({
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="plate">Who pays whom</h2>
-          {payments.length > 0 ? (
+          {debts.length > 0 ? (
+            <span className="text-xs text-ink-500">
+              {outstanding.length === 0
+                ? 'all settled up'
+                : `${outstanding.length} of ${debts.length} still to pay`}
+            </span>
+          ) : payments.length > 0 ? (
             <span className="text-xs text-ink-500">
               {payments.length} {payments.length === 1 ? 'payment' : 'payments'}
               {naive > payments.length ? ` instead of ${naive}` : ''}
@@ -87,7 +127,56 @@ export function SettlePanel({
           ) : null}
         </div>
 
-        {payments.length === 0 ? (
+        {clearError ? <p className="text-sm text-rouge-400">{clearError}</p> : null}
+
+        {debts.length > 0 ? (
+          <>
+            <ul className="card">
+              {debts.map((d) => {
+                const paid = d.status === 'paid';
+                const mine = canClear(d);
+                return (
+                  <li
+                    key={d.id}
+                    className={`ledger-row flex items-center gap-3 px-4 py-3 last:border-b-0 ${
+                      paid ? 'text-ink-500' : ''
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{nameOf(d.from_player_id)}</span>
+                    <span aria-hidden className={paid ? 'text-ink-500' : 'text-brass-400'}>
+                      →
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{nameOf(d.to_player_id)}</span>
+                    <span className={`figure shrink-0 text-lg ${paid ? 'line-through' : ''}`}>
+                      {formatMoney(d.amount_cents)}
+                    </span>
+                    {mine ? (
+                      <Button
+                        size="sm"
+                        variant={paid ? 'ghost' : 'primary'}
+                        disabled={clearing === d.id}
+                        onClick={() => toggleDebt(d)}
+                      >
+                        {clearing === d.id ? '…' : paid ? 'Undo' : 'Paid'}
+                      </Button>
+                    ) : (
+                      <span className="w-16 shrink-0 text-right text-xs text-ink-500">
+                        {paid ? 'paid' : 'waiting'}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="text-xs text-ink-500">
+              Only the person being paid can tick one off, so it means the money actually
+              arrived. Guests have no account to tick with, so the host does theirs.
+            </p>
+            <Button variant="ghost" className="w-full" onClick={copySummary}>
+              {copied ? 'Copied' : "Copy what's left"}
+            </Button>
+          </>
+        ) : payments.length === 0 ? (
           <Empty>Nobody owes anybody. Either the night hasn&apos;t started or it ended dead even.</Empty>
         ) : (
           <>

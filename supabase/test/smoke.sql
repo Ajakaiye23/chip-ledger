@@ -338,7 +338,14 @@ select public.transfer_host(
 
 set test.uid = '11111111-1111-1111-1111-111111111111';
 insert into public.settlements (game_id, payments, totals)
-values (:'game_id', '[{"fromPlayerId":"a","toPlayerId":"b","amountCents":1000}]'::jsonb, '[]'::jsonb);
+select :'game_id',
+       jsonb_build_array(jsonb_build_object(
+         'fromPlayerId', (select id from public.game_players
+                          where display_name = 'Sam' and game_id = :'game_id'),
+         'toPlayerId', (select id from public.game_players
+                        where display_name = 'Hannah' and game_id = :'game_id'),
+         'amountCents', 1000)),
+       '[]'::jsonb;
 update public.games set status = 'settled', ended_at = now() where id = :'game_id';
 
 do $$
@@ -494,6 +501,115 @@ begin
   exception when others then denied := true;
   end;
   assert denied, 'you cannot ask to join a table you are already at';
+end;
+$$;
+
+-- ------------------------------------------------------------------- debts --
+
+-- Settling the first table produced a payment plan; that becomes debts.
+do $$
+begin
+  assert (select count(*) from public.debts) = 1,
+    'the settlement should have produced one debt';
+  assert (select amount_cents from public.debts) = 1000, 'for the amount in the plan';
+  assert (select status from public.debts) = 'outstanding', 'starting outstanding';
+end;
+$$;
+
+-- The person who owes cannot mark it paid themselves.
+set test.uid = '22222222-2222-2222-2222-222222222222';
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.mark_debt_paid((select id from public.debts));
+  exception when others then denied := true;
+  end;
+  assert denied, 'the debtor must not be able to clear their own debt';
+end;
+$$;
+
+-- The person owed can.
+set test.uid = '11111111-1111-1111-1111-111111111111';
+select public.mark_debt_paid((select id from public.debts));
+
+do $$
+begin
+  assert (select status from public.debts) = 'paid', 'the creditor clears it';
+  assert (select count(*) from public.my_debts()) = 0, 'and it drops off both screens';
+end;
+$$;
+
+-- Re-settling must not resurrect a debt somebody already handed cash over for.
+update public.settlements
+set payments = jsonb_build_array(jsonb_build_object(
+      'fromPlayerId', (select id from public.game_players
+                       where display_name = 'Sam' and game_id = :'game_id'),
+      'toPlayerId', (select id from public.game_players
+                     where display_name = 'Hannah' and game_id = :'game_id'),
+      'amountCents', 1000))
+where game_id = :'game_id';
+
+do $$
+begin
+  assert (select count(*) from public.debts where status = 'paid') = 1,
+    'a paid debt survives a re-settle';
+end;
+$$;
+
+-- A debt between two guests at your table is real, but it is not yours: it must
+-- not be listed as "owed to you" or as "you owe". Two guest seats already exist
+-- from the capacity test, so no new ones are needed (the table is full anyway).
+-- The row goes in with the role reset, because nobody may write debts directly.
+reset role;
+insert into public.debts (game_id, from_player_id, to_player_id, amount_cents)
+select :'game_id',
+       (select id from public.game_players where display_name = 'Guest 1' and game_id = :'game_id'),
+       (select id from public.game_players where display_name = 'Guest 2' and game_id = :'game_id'),
+       500;
+set role authenticated;
+
+set test.uid = '11111111-1111-1111-1111-111111111111';
+do $$
+begin
+  assert not exists (select 1 from public.my_debts() where amount_cents = 500),
+    'a debt between two other people is not mine in either direction';
+end;
+$$;
+
+-- And the app cannot write debts by hand — only settling a game creates them.
+do $$
+declare denied boolean := false;
+begin
+  begin
+    insert into public.debts (game_id, from_player_id, to_player_id, amount_cents)
+    select d.game_id, d.to_player_id, d.from_player_id, 100 from public.debts d limit 1;
+  exception when others then denied := true;
+  end;
+  assert denied, 'debts are written by the settlement trigger, not by hand';
+end;
+$$;
+
+-- ------------------------------------------------------- global leaderboard --
+
+do $$
+declare
+  mine record;
+begin
+  select * into mine from public.global_leaderboard(0)
+  where user_id = '11111111-1111-1111-1111-111111111111';
+
+  assert mine.user_id is not null, 'the leaderboard should include a settled player';
+  assert mine.is_me, 'and flag which row is yours';
+  assert mine.return_pct is not null, 'with a percentage return';
+end;
+$$;
+
+-- The floor keeps out anyone who has barely staked anything.
+do $$
+begin
+  assert (select count(*) from public.global_leaderboard(1000000)) = 0,
+    'a high floor should empty the board';
 end;
 $$;
 

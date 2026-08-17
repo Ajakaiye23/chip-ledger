@@ -5,6 +5,8 @@ import { isSupabaseConfigured } from '@/lib/supabase/config';
 import {
   loadAccountHistory,
   loadFriendsOpenGames,
+  loadDebts,
+  loadGlobalBoard,
   loadKnownPlayers,
   loadMonthGames,
   loadPendingRequests,
@@ -22,13 +24,24 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/');
 
-  const [{ data: profile }, summaries, monthGames, known, openGames, requests] = await Promise.all([
+  const [
+    { data: profile },
+    summaries,
+    monthGames,
+    known,
+    openGames,
+    requests,
+    debts,
+    globalBoard,
+  ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     loadAccountHistory(supabase, user.id),
     loadMonthGames(supabase, user.id, startOfMonth()),
     loadKnownPlayers(supabase),
     loadFriendsOpenGames(supabase),
     loadPendingRequests(supabase, user.id),
+    loadDebts(supabase),
+    loadGlobalBoard(supabase),
   ]);
 
   const displayName =
@@ -48,6 +61,8 @@ export default async function DashboardPage() {
       known={known}
       openGames={openGames}
       requests={requests}
+      debts={debts}
+      globalBoard={globalBoard}
     />
   );
 }

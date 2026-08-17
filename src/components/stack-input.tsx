@@ -11,7 +11,7 @@ export type StackValue = { cents: number; chips: ChipCounts | null };
 /**
  * One control for "how much", usable two ways: type a dollar amount and see the
  * chips it buys, or count the chips in front of you and see what they're worth
- * at this round's prices.
+ * at the values the host set for the night.
  */
 export function StackInput({
   chips,
@@ -25,9 +25,9 @@ export function StackInput({
   value: StackValue;
   onChange: (next: StackValue) => void;
   autoFocus?: boolean;
-  /** Off when several of these are stacked up, as in the end-of-round count. */
+  /** Off when several of these are stacked up, as in the end-of-night count. */
   quickAmounts?: boolean;
-  /** Scoring a round starts on chip counting; buying in starts on the amount. */
+  /** Counting someone up starts on chips; buying in starts on the amount. */
   defaultMode?: 'money' | 'chips';
 }) {
   const [mode, setMode] = useState<'money' | 'chips'>(defaultMode);

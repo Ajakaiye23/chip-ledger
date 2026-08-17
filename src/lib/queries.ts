@@ -2,14 +2,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { computeGameState, type GameState } from './ledger';
 import type { MonthGame } from './leaderboard';
 import { playedAt, type GameSummary } from './stats';
-import type {
-  Game,
-  GamePlayer,
-  GameRequest,
-  KnownPlayer,
-  LedgerEntry,
-  OpenGame,
-  Settlement,
+import {
+  GLOBAL_BOARD_MIN_STAKED_CENTS,
+  type Debt,
+  type Game,
+  type GamePlayer,
+  type GameDebt,
+  type GameRequest,
+  type GlobalStanding,
+  type KnownPlayer,
+  type LedgerEntry,
+  type OpenGame,
+  type Settlement,
 } from './types';
 
 export type GameBundle = {
@@ -17,19 +21,21 @@ export type GameBundle = {
   players: GamePlayer[];
   entries: LedgerEntry[];
   settlement: Settlement | null;
+  debts: GameDebt[];
   state: GameState;
 };
 
-/** Everything one game needs, in four round-trips. */
+/** Everything one game needs, in five round-trips. */
 export async function loadGame(
   supabase: SupabaseClient,
   gameId: string,
 ): Promise<GameBundle | null> {
-  const [gameRes, playersRes, entriesRes, settlementRes] = await Promise.all([
+  const [gameRes, playersRes, entriesRes, settlementRes, debtsRes] = await Promise.all([
     supabase.from('games').select('*').eq('id', gameId).maybeSingle(),
     supabase.from('game_players').select('*').eq('game_id', gameId).order('joined_at'),
     supabase.from('ledger_entries').select('*').eq('game_id', gameId).order('created_at'),
     supabase.from('settlements').select('*').eq('game_id', gameId).maybeSingle(),
+    supabase.from('debts').select('*').eq('game_id', gameId).order('amount_cents', { ascending: false }),
   ]);
 
   const game = gameRes.data as Game | null;
@@ -43,6 +49,7 @@ export async function loadGame(
     players,
     entries,
     settlement: (settlementRes.data ?? null) as Settlement | null,
+    debts: (debtsRes.data ?? []) as GameDebt[],
     state: computeGameState({ players, entries }),
   };
 }
@@ -169,4 +176,21 @@ export async function loadPendingRequests(
       game_name: r.games?.name ?? 'a table',
       other_name: r.profiles?.display_name ?? 'Someone',
     }));
+}
+
+/** Everyone, ranked by percentage return, with a floor on money staked. */
+export async function loadGlobalBoard(
+  supabase: SupabaseClient,
+  minStakedCents = GLOBAL_BOARD_MIN_STAKED_CENTS,
+): Promise<GlobalStanding[]> {
+  const { data } = await supabase.rpc('global_leaderboard', {
+    p_min_staked_cents: minStakedCents,
+  });
+  return (data ?? []) as GlobalStanding[];
+}
+
+/** What's still owed, both directions. */
+export async function loadDebts(supabase: SupabaseClient): Promise<Debt[]> {
+  const { data } = await supabase.rpc('my_debts');
+  return (data ?? []) as Debt[];
 }

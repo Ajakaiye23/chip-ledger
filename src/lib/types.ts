@@ -138,3 +138,44 @@ export type GameRequest = {
   created_by: string;
   created_at: string;
 };
+
+/** A row on the global, percentage-return leaderboard. */
+export type GlobalStanding = {
+  user_id: string;
+  display_name: string;
+  staked_cents: number;
+  net_cents: number;
+  return_pct: number;
+  nights: number;
+  is_me: boolean;
+};
+
+/**
+ * A debt as it sits on the game that produced it. The settle screen reads these
+ * raw, because at the table it matters who owes whom by seat — including guests,
+ * who have no account for the dashboard version below to hang off.
+ */
+export type GameDebt = {
+  id: string;
+  game_id: string;
+  from_player_id: string;
+  to_player_id: string;
+  amount_cents: number;
+  status: 'outstanding' | 'paid';
+  paid_at: string | null;
+};
+
+/** Money still owed, in either direction, for the account-level view. */
+export type Debt = {
+  id: string;
+  game_id: string;
+  game_name: string;
+  amount_cents: number;
+  direction: 'owed_to_me' | 'i_owe';
+  other_name: string;
+  status: 'outstanding' | 'paid';
+  settled_at: string | null;
+};
+
+/** The floor to appear on the global board: $10 staked, all time. */
+export const GLOBAL_BOARD_MIN_STAKED_CENTS = 1000;

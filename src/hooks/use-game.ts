@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { loadGame } from '@/lib/queries';
-import type { Game, GamePlayer, LedgerEntry, Settlement } from '@/lib/types';
+import type { Game, GameDebt, GamePlayer, LedgerEntry, Settlement } from '@/lib/types';
 
 export type GameData = {
   game: Game;
   players: GamePlayer[];
   entries: LedgerEntry[];
   settlement: Settlement | null;
+  debts: GameDebt[];
 };
 
 /**
@@ -32,6 +33,7 @@ export function useGame(initial: GameData) {
           players: bundle.players,
           entries: bundle.entries,
           settlement: bundle.settlement,
+          debts: bundle.debts,
         });
       }
     } finally {
@@ -47,6 +49,7 @@ export function useGame(initial: GameData) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: gameFilter }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_entries', filter: gameFilter }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements', filter: gameFilter }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'debts', filter: gameFilter }, refresh)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${initial.game.id}` }, refresh)
       .subscribe();
 

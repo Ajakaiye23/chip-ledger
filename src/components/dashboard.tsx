@@ -14,10 +14,12 @@ import {
   type ChipDenomination,
 } from '@/lib/types';
 import type { LeaderboardRow } from '@/lib/leaderboard';
-import type { GameRequest, KnownPlayer, OpenGame } from '@/lib/types';
+import type { Debt, GameRequest, GlobalStanding, KnownPlayer, OpenGame } from '@/lib/types';
 import { ChipValuesEditor } from './chip-values-editor';
 import { GuideButton, GuideSheet, useGuide } from './guide';
+import { DebtsPanel } from './debts-panel';
 import { FriendsPanel } from './friends-panel';
+import { GlobalBoard } from './global-board';
 import { Leaderboard } from './leaderboard';
 import { RankCard } from './rank-card';
 import { NameSheet } from './name-sheet';
@@ -33,6 +35,8 @@ export function Dashboard({
   known = [],
   openGames = [],
   requests = [],
+  debts = [],
+  globalBoard = [],
   needsName = false,
 }: {
   userId: string;
@@ -43,6 +47,8 @@ export function Dashboard({
   known?: KnownPlayer[];
   openGames?: OpenGame[];
   requests?: Array<GameRequest & { game_name: string; other_name: string }>;
+  debts?: Debt[];
+  globalBoard?: GlobalStanding[];
   /** True until someone has set a proper "first name, last initial". */
   needsName?: boolean;
 }) {
@@ -124,6 +130,8 @@ export function Dashboard({
         </Button>
       </section>
 
+      {debts.length > 0 ? <DebtsPanel debts={debts} /> : null}
+
       {requests.length > 0 || known.some((k) => k.friendship_status === 'pending' && k.they_asked) ? (
         <FriendsPanel known={known} openGames={openGames} requests={requests} />
       ) : null}
@@ -131,6 +139,8 @@ export function Dashboard({
       <RankCard summaries={summaries} />
 
       <Leaderboard rows={leaderboard} />
+
+      <GlobalBoard rows={globalBoard} />
 
       <section className="space-y-3">
         <h2 className="plate text-ink-300">At the table now</h2>
@@ -262,7 +272,7 @@ function CreateGameSheet({
         <div className="space-y-2">
           <p className="plate text-ink-300">Chip values</p>
           <p className="text-xs text-ink-500">
-            Set once, here, for the whole night. Every round is scored at these prices.
+            Set once, here, for the whole night. Every count uses these values.
           </p>
           <ChipValuesEditor chips={chips} onChange={setChips} />
         </div>
@@ -304,7 +314,7 @@ function CreateGameSheet({
             </p>
           ) : (
             <p className="text-xs text-ink-500">
-              The button moves one seat each round and the app says who posts what.
+              The button moves one seat each hand and the app says who posts what.
             </p>
           )}
         </div>

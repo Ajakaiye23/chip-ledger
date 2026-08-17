@@ -55,6 +55,7 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
         players: bundle.players,
         entries: bundle.entries,
         settlement: bundle.settlement,
+        debts: bundle.debts,
       }}
     />
   );

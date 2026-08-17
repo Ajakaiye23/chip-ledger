@@ -32,21 +32,21 @@ const STEPS: Step[] = [
     suitClass: 'text-rouge-400',
     title: 'Play, then count up once',
     body:
-      'A round is as long as you want — one hand or the whole night. When it ends the host counts each player’s chips by colour, and the difference from what they started with is their profit. The button moves a seat and the app flashes at whoever is on the blinds.',
+      'Nothing is scored hand by hand. At the end of the night you count each player’s chips by colour, once, and the difference from what they put in is their profit. While you play, the button moves a seat at a time and the app flashes at whoever is on the blinds.',
   },
   {
     suit: '♣',
     suitClass: 'text-ink-100',
     title: 'Leave, rejoin, or turn up late',
     body:
-      'None of it breaks the books. Walk away for three rounds and your chips are still yours; sit down at round nine and you simply have no rows before that. The host can also track someone who doesn’t have the app at all.',
+      'None of it breaks the books. Walk away for half an hour and your chips are still yours; sit down an hour late and you simply bought in later than everyone else. The host can also track someone who doesn’t have the app at all.',
   },
   {
     suit: '♠',
     suitClass: 'text-brass-400',
     title: 'Settle up in the fewest payments',
     body:
-      'History shows what everyone won or lost each round and where they stand. When you’re done, Settle works out the shortest possible list of payments — if two people’s debts cancel out, they just pay each other instead of passing money round the table.',
+      'Settle works out the shortest possible list of payments — if two people’s debts cancel out they just pay each other, instead of passing money round the table. Tick each one off as the cash arrives; only the person being paid can, so it means the money actually turned up.',
   },
 ];
 

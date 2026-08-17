@@ -11,6 +11,7 @@ import type {
   LedgerEntry,
   OpenGame,
 } from './types';
+import type { Debt, GlobalStanding } from './types';
 
 /**
  * A made-up Friday night, used by /preview so the app can be looked at before any
@@ -96,7 +97,9 @@ const entries: LedgerEntry[] = [
   money('e5', 'p-riley', 'buy_in', 4000, 66), // walked in an hour late
 ];
 
-export const sampleGame: GameData = { game, players, entries, settlement: null };
+// The preview table is still running, so nothing is owed yet — debts only exist
+// once a game has been settled and the plan is frozen.
+export const sampleGame: GameData = { game, players, entries, settlement: null, debts: [] };
 
 /** A few nights with this crowd, for the leaderboard. */
 export function sampleLeaderboard(): LeaderboardRow[] {
@@ -231,5 +234,53 @@ export function sampleRequests(): Array<GameRequest & { game_name: string; other
       game_name: "Sam's Saturday",
       other_name: 'Sam K.',
     },
+  ];
+}
+
+/** Money still owed after a couple of settled nights. */
+export function sampleDebts(): Debt[] {
+  return [
+    {
+      id: 'd1',
+      game_id: 'past-0',
+      game_name: 'Tuesday cash game',
+      amount_cents: 1250,
+      direction: 'owed_to_me',
+      other_name: 'Dev R.',
+      status: 'outstanding',
+      settled_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    },
+    {
+      id: 'd2',
+      game_id: 'past-1',
+      game_name: 'Poker night at Dev\u2019s',
+      amount_cents: 800,
+      direction: 'owed_to_me',
+      other_name: 'Mo T.',
+      status: 'outstanding',
+      settled_at: new Date(Date.now() - 9 * 86_400_000).toISOString(),
+    },
+    {
+      id: 'd3',
+      game_id: 'past-2',
+      game_name: 'Holiday tournament',
+      amount_cents: 2000,
+      direction: 'i_owe',
+      other_name: 'Sam K.',
+      status: 'outstanding',
+      settled_at: new Date(Date.now() - 26 * 86_400_000).toISOString(),
+    },
+  ];
+}
+
+/** The global board, ranked on percentage return. */
+export function sampleGlobalBoard(): GlobalStanding[] {
+  return [
+    { user_id: 'u1', display_name: 'Priya N.', staked_cents: 24000, net_cents: 9600, return_pct: 40, nights: 9, is_me: false },
+    { user_id: 'u2', display_name: 'Dev R.', staked_cents: 61000, net_cents: 14030, return_pct: 23, nights: 21, is_me: false },
+    { user_id: 'u3', display_name: 'Tom W.', staked_cents: 12000, net_cents: 1800, return_pct: 15, nights: 4, is_me: false },
+    { user_id: 'user-sam', display_name: 'Sam K.', staked_cents: 44000, net_cents: 3520, return_pct: 8, nights: 16, is_me: false },
+    { user_id: PREVIEW_USER_ID, display_name: 'Hannah B.', staked_cents: 27000, net_cents: -1175, return_pct: -4.4, nights: 5, is_me: true },
+    { user_id: 'u5', display_name: 'Mo T.', staked_cents: 15500, net_cents: -3100, return_pct: -20, nights: 6, is_me: false },
   ];
 }

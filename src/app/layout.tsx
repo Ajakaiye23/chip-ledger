@@ -5,7 +5,7 @@ import { ServiceWorker } from '@/components/service-worker';
 export const metadata: Metadata = {
   title: 'Chip Ledger — home game bookkeeping',
   description:
-    'Track buy-ins, chip values and per-round results for your home poker game, then settle up in the fewest possible payments.',
+    'Track buy-ins, chip values and what everyone counted up at your home poker game, then settle up in the fewest possible payments.',
   applicationName: 'Chip Ledger',
   manifest: '/manifest.webmanifest',
   appleWebApp: {

@@ -305,6 +305,55 @@ for (const [name, viewport] of [
   await ctx.close();
 }
 
+// Money owed, and the global board, both live on the stats view.
+for (const [name, viewport] of [
+  ['debts/small', SMALL],
+  ['debts/phone', PHONE],
+  ['debts/desktop', DESKTOP],
+]) {
+  const { ctx, page, errors } = await newPage(viewport);
+  await page.goto(`${base}/preview`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Your stats' }).click();
+  await page.waitForTimeout(300);
+
+  // Both directions are shown, and only the money owed to you is clearable.
+  const owed = page.getByRole('heading', { name: 'Owed to you' });
+  if (!(await owed.isVisible())) fail(name, 'the "Owed to you" list is missing');
+  else ok();
+
+  const iOwe = page.getByRole('heading', { name: 'You owe' });
+  if (!(await iOwe.isVisible())) fail(name, 'the "You owe" list is missing');
+  else ok();
+
+  const paidButtons = await page.getByRole('button', { name: 'Paid' }).count();
+  if (paidButtons !== 2) fail(name, `expected a Paid button per debt owed to you, found ${paidButtons}`);
+  else ok();
+
+  // $12.50 + $8.00 owed to you; $20.00 owed by you. The totals must say so.
+  if (!(await page.getByText('+$20.50').first().isVisible().catch(() => false)))
+    fail(name, 'the owed-to-you total did not add up to $20.50');
+  else ok();
+  if (!(await page.getByText('−$20.00').first().isVisible().catch(() => false)))
+    fail(name, 'the you-owe total did not read −$20.00');
+  else ok();
+
+  await auditPage(page, `${name}/panel`);
+
+  // The global board ranks on percentage, and flags your own row.
+  const board = page.getByRole('heading', { name: 'Global board' });
+  if (!(await board.isVisible())) fail(name, 'the global board is missing');
+  else ok();
+  if (!(await page.getByText('+40%').first().isVisible().catch(() => false)))
+    fail(name, 'the top return is not shown');
+  else ok();
+  if (!(await page.getByText('you', { exact: true }).first().isVisible().catch(() => false)))
+    fail(name, 'your own row is not marked');
+  else ok();
+
+  if (errors.length) fail(name, errors.join('; '));
+  await ctx.close();
+}
+
 // The guide must open by itself on a first visit, and stay shut afterwards.
 {
   const { ctx, page, errors } = await newPage(PHONE, { seenGuide: false });
