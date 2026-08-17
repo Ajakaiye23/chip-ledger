@@ -23,9 +23,9 @@ export type StatWindow = {
 const DAY = 24 * 60 * 60 * 1000;
 
 /**
- * A game is attributed to the moment it wrapped up: its end time, or its last
- * closed round, or failing both the time it was created. That keeps one long
- * night from being smeared across two weeks.
+ * A game is attributed to the moment it wrapped up: its end time, or — while it
+ * is still running — the time it was opened. That keeps one long night from
+ * being smeared across two weeks.
  */
 export function playedAt(game: Game): number {
   return new Date(game.ended_at ?? game.created_at).getTime();

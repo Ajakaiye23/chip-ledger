@@ -44,6 +44,15 @@ describe('scoring a night', () => {
     expect(pointsForNight(0, 4000)).toBe(0);
   });
 
+  it('counts a win as a win however thin it is', () => {
+    // A cent up off a $200 buy-in is a return of 0.00005. It is still a night
+    // the player finished ahead, and must never score as a losing one.
+    expect(pointsForNight(1, 20000)).toBe(1);
+    expect(pointsForNight(1, 1_000_000)).toBe(1);
+    // And a cent down is still a loss.
+    expect(pointsForNight(-1, 20000)).toBe(-1);
+  });
+
   it('ignores a night where nothing was staked', () => {
     expect(pointsForNight(500, 0)).toBe(0);
   });

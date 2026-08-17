@@ -48,10 +48,15 @@ export function ChipValuesEditor({
   }
 
   const inPlay = new Map(draft.map((c) => [c.key, c]));
+  const isCustom = (c: ChipDenomination) => !CHIP_PALETTE.some((b) => b.key === c.key);
   const rows = [
     ...CHIP_PALETTE.map((base) => inPlay.get(base.key) ?? remembered[base.key] ?? base),
-    // Anything custom the host added on top of the standard set.
-    ...draft.filter((c) => !CHIP_PALETTE.some((b) => b.key === c.key)),
+    // Anything custom the host added on top of the standard set...
+    ...draft.filter(isCustom),
+    // ...including the ones switched off. A standard colour stays on the list
+    // greyed out when you untick it; a custom one used to vanish outright, which
+    // made the same checkbox a toggle on some rows and a delete on others.
+    ...Object.values(remembered).filter((c) => isCustom(c) && !inPlay.has(c.key)),
   ];
 
   const byValue = (a: ChipDenomination, b: ChipDenomination) => a.valueCents - b.valueCents;

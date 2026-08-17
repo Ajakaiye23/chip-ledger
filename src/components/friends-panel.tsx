@@ -162,6 +162,12 @@ export function FriendsPanel({
         </section>
       ) : null}
 
+      {/*
+        Until you've played with somebody there is nobody to add, so the list
+        this points at doesn't exist yet. Showing both empty states stacked the
+        message "add someone below" directly on top of "nobody here yet".
+      */}
+      {known.length > 0 ? (
       <section>
         <h2 className="plate mb-1.5">Friends</h2>
         {friends.length === 0 ? (
@@ -189,6 +195,7 @@ export function FriendsPanel({
           </ul>
         )}
       </section>
+      ) : null}
 
       {strangers.length > 0 || asked.length > 0 ? (
         <section>

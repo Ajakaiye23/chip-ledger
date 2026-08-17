@@ -220,6 +220,56 @@ for (const [name, viewport] of [
   await ctx.close();
 }
 
+// A sheet opened for one player must never carry that player's numbers into the
+// next player's sheet. This decides real money, so it gets its own pass.
+{
+  const { ctx, page, errors } = await newPage(PHONE);
+  await page.goto(`${base}/preview`, { waitUntil: 'networkidle' });
+
+  // Type a buy-in for one player, abandon it, open another player's buy-in.
+  await page.getByRole('button', { name: /Hannah/ }).first().click();
+  await page.getByRole('button', { name: 'Buy in', exact: true }).click();
+  await page.getByLabel('Amount in dollars').fill('20');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  await page.getByRole('button', { name: /Sam/ }).first().click();
+  await page.getByRole('button', { name: 'Buy in', exact: true }).click();
+  await page.waitForTimeout(250);
+  const carried = await page.getByLabel('Amount in dollars').inputValue();
+  if (carried !== '') fail('sheet state', `buy-in carried "${carried}" to the next player`);
+  else ok();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // Same for the final count, where a stale number would be saved as their night.
+  await page.getByRole('button', { name: /Riley/ }).first().click();
+  await page.getByRole('button', { name: /Count them up/ }).click();
+  await page.waitForTimeout(250);
+  await page.getByLabel('Black chips').fill('5');
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+
+  await page.getByRole('button', { name: /Dev/ }).first().click();
+  await page.getByRole('button', { name: /final count|Count them up/ }).click();
+  await page.waitForTimeout(300);
+  const stale = await page.getByLabel('Black chips').inputValue();
+  if (stale === '5') fail('sheet state', 'a final count carried to the next player');
+  else ok();
+
+  // Dev is already counted at $65 off $60 in, so re-opening must show +$5.00,
+  // not a blank sheet that would save as zero.
+  const seeded = await page.getByText('+$5.00').first().isVisible().catch(() => false);
+  if (!seeded) fail('sheet state', 'changing a count did not start from the stored count');
+  else ok();
+
+  await page.keyboard.press('Escape');
+  if (errors.length) fail('sheet state', errors.join('; '));
+  await ctx.close();
+}
+
 // Handing the table over.
 {
   const { ctx, page, errors } = await newPage(PHONE);
@@ -302,6 +352,41 @@ for (const [name, viewport] of [
   await auditPage(page, 'name sheet');
   await page.keyboard.press('Escape');
   if (errors.length) fail('rank/name', errors.join('; '));
+  await ctx.close();
+}
+
+// Switching a colour off must be a toggle on every row, never a delete.
+{
+  const { ctx, page, errors } = await newPage(PHONE);
+  await page.goto(`${base}/preview`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Your stats' }).click();
+  await page.getByRole('button', { name: 'Start a table' }).click();
+  await page.waitForTimeout(300);
+
+  const colours = () => page.locator('input[type=checkbox][aria-label^="Use "]').count();
+  await page.getByRole('button', { name: 'Add another colour' }).click();
+  await page.waitForTimeout(200);
+  const added = await colours();
+
+  await page.getByLabel('Use White chips').click();
+  await page.waitForTimeout(250);
+  if ((await colours()) !== added) fail('chip values', 'switching off a standard colour dropped a row');
+  else ok();
+
+  await page.getByLabel('Use New chip chips').click({ force: true });
+  await page.waitForTimeout(250);
+  if ((await colours()) !== added) fail('chip values', 'switching off a custom colour deleted it');
+  else ok();
+
+  // And switching it back on must restore it, not a fresh default.
+  await page.getByLabel('Use New chip chips').click({ force: true });
+  await page.waitForTimeout(250);
+  const back = await page.getByLabel('New chip value').inputValue().catch(() => null);
+  if (back === null) fail('chip values', 'a custom colour could not be switched back on');
+  else ok();
+
+  await auditPage(page, 'chip values');
+  if (errors.length) fail('chip values', errors.join('; '));
   await ctx.close();
 }
 

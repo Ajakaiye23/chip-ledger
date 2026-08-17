@@ -2,9 +2,11 @@
  * Minimal service worker: enough to make the app installable and to survive a
  * dead phone signal at the table, without ever serving stale game data.
  *
+ * - Pages: network-first, falling back to the last copy and then to /offline.
  * - App shell (icons, manifest, offline page): cache-first.
- * - Everything else, including every Supabase call: network-first. Ledger data is
- *   money, so a cached copy is only ever a fallback when the network is gone.
+ * - Supabase: never touched. Cross-origin requests bail out above, so ledger
+ *   data is always fetched live — money is the one thing that must not come
+ *   from a cache.
  */
 const CACHE = 'chip-ledger-v1';
 const SHELL = ['/offline', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];

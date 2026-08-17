@@ -193,7 +193,14 @@ export function PlayersPanel({
         }}
       />
 
+      {/*
+        Both of these keep a draft amount, and both get opened for one player
+        after another. Keying them on who they're for throws that draft away
+        between players — without it, the count you typed for one person is
+        still sitting there, invisible, when you open the next person's sheet.
+      */}
       <FinalCountSheet
+        key={`count-${counting?.player.id ?? 'none'}`}
         entry={counting}
         chipValues={chipValues}
         onClose={() => setCounting(null)}
@@ -201,6 +208,7 @@ export function PlayersPanel({
       />
 
       <MoneySheet
+        key={`money-${money?.player.id ?? 'none'}-${money?.kind ?? ''}`}
         open={money !== null}
         onClose={() => setMoneySheet(null)}
         player={money?.player ?? null}
@@ -581,7 +589,13 @@ function FinalCountSheet({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [value, setValue] = useState<StackValue>({ cents: 0, chips: null });
+  // Changing a count starts from the count that's already there, so a correction
+  // is an edit rather than a retype — and so Save can never mean "make it zero"
+  // just because the sheet opened blank.
+  const [value, setValue] = useState<StackValue>(() => ({
+    cents: entry?.player.final_stack_cents ?? 0,
+    chips: entry?.player.final_chips ?? null,
+  }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

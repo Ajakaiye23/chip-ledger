@@ -5,9 +5,9 @@ import { RANKS, standingFor } from '@/lib/rank';
 import type { GameSummary } from '@/lib/stats';
 
 /**
- * Where you sit on the ladder. Points come from nights you finished up — one for
- * a win, more for a good one — and never come off, so this reads as a record of
- * what you've done rather than a rating that punishes a bad night.
+ * Where you sit on the ladder. Nights are scored on return rather than dollars,
+ * losing nights take points off, and every rank needs a number of nights as well
+ * as points — so this rates how you play, not how long you've been showing up.
  */
 export function RankCard({ summaries }: { summaries: GameSummary[] }) {
   const standing = useMemo(() => standingFor(summaries), [summaries]);

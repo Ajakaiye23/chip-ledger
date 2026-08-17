@@ -20,11 +20,19 @@ import type { GameSummary } from './stats';
 
 export type NightScore = { atLeastReturn: number; points: number };
 
-/** Return = profit ÷ what you put on the table. +1 means you doubled your money. */
+/**
+ * Return = profit ÷ what you put on the table. +1 means you doubled your money.
+ *
+ * The "up at all" band starts at exactly zero rather than at a small epsilon.
+ * A break-even night is caught before the table is consulted, so anything that
+ * gets here with a positive net is a winning night however thin — with an
+ * epsilon, a 1c win off a $200 buy-in fell through to the losing band and was
+ * scored as if the player had lost.
+ */
 export const NIGHT_SCORES: NightScore[] = [
   { atLeastReturn: 1, points: 3 },      // doubled up or better
   { atLeastReturn: 0.5, points: 2 },    // up 50%
-  { atLeastReturn: 0.0001, points: 1 }, // up at all
+  { atLeastReturn: 0, points: 1 },      // up at all
   { atLeastReturn: -0.5, points: -1 },  // down, but less than half
   { atLeastReturn: -Infinity, points: -2 }, // lost half your money or worse
 ];

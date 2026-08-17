@@ -13,8 +13,9 @@ export function formatMoney(cents: number, opts: { sign?: boolean } = {}): strin
 }
 
 /**
- * Compact form for stat tiles: $270 / $1,240 / $12.4k. Whole dollars lose the
- * ".00" so a row of tiles reads as one set of numbers rather than a mix.
+ * Compact form for stat tiles: $270 / $1.2k / $12.4k. Whole dollars under a
+ * thousand lose the ".00", so a row of tiles reads as one set of numbers rather
+ * than a mix.
  */
 export function formatMoneyShort(cents: number): string {
   const abs = Math.abs(cents);
