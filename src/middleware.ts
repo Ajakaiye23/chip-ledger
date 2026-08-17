@@ -40,6 +40,14 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+/**
+ * Every path this matches costs a call to Supabase's auth API, so paths with
+ * nothing to do with accounts are kept out of it. /preview runs entirely on
+ * made-up data and /offline is a static card — neither reads a session, and
+ * refreshing one for them is a request spent on nothing.
+ */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|.*\\.png$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|preview|offline|.*\\.png$).*)',
+  ],
 };
